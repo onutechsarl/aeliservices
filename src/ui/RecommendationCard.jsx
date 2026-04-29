@@ -8,7 +8,7 @@ export function RecommendationCard({ title, description, location, rating, isAct
     return (
         <div
             className={`
-                snap-center shrink-0 transition-all duration-700 ease-in-out overflow-hidden relative rounded-3xl h-[320px]
+                snap-center shrink-0 transition-all duration-700 ease-in-out overflow-hidden relative md:rounded-3xl h-[320px]
                 ${isActive
                     ? 'w-full md:w-[800px] opacity-100 shadow-2xl shadow-purple-900/20'
                     : 'w-[250px] md:w-[300px] opacity-60 scale-95'

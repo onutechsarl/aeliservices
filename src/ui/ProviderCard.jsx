@@ -73,7 +73,7 @@ export function ProviderCard({
               <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
                 {activities && activities.length > 0 ? (
                   <>
-                    <div className="flex gap-2 overflow-hidden text-ellipsis">
+                    <div className="flex gap-2 overflow-x-auto text-ellipsis no-scrollbar">
                       {activities.map((activity, index) => (
                         <span
                           key={index}

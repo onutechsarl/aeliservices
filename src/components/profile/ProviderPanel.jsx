@@ -102,8 +102,12 @@ export function ProviderPanel({ onOpenManageDocuments }) {
                                     <span className="text-slate-500 text-xs font-medium">Activités</span>
                                     <div className="flex gap-1 mt-1">
                                         {displayData?.activities?.slice(0, 2).map((act, i) => (
-                                            <span key={i} className="flex items-center gap-1 px-3 py-1 bg-[#E8524D]/10 text-[#E8524D] text-[12px] text-center font-medium rounded-full border border-[#E8524D]/20 animate-in zoom-in duration-200">
-                                                {act}
+                                            <span
+                                                key={i}
+                                                title={act} // Affiche le nom complet au survol de la souris
+                                                className="flex items-center gap-1 px-3 py-1 bg-[#E8524D]/10 text-[#E8524D] text-[12px] font-medium rounded-full border border-[#E8524D]/20 animate-in zoom-in duration-200 truncate max-w-[100px]"
+                                            >
+                                                <span className="truncate">{act}</span>
                                             </span>
                                         ))}
                                     </div>

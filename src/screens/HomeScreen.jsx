@@ -15,7 +15,7 @@ export function HomeScreen() {
                 <div className="mt-16">
                     <RecommendationSection />
                 </div>
-                <div className="mt-16">
+                <div className="mt-16 px-4">
                     <ServicesSection />
                 </div>
             </div>

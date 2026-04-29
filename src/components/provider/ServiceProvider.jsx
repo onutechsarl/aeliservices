@@ -259,51 +259,59 @@ export function ServiceProvider({ mode, dataConsult }) {
                     </div>
 
 
-                    <div className={`grid grid-cols-1 ${mode === "consultationCustomers" && currentServices.length > 0 ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : currentServices.length > 0 ? "sm:grid-cols-2 lg:grid-cols-3" : "flex"} gap-6 mb-20 md:mb-4`}>
+                    {/* Conteneur principal modifié : passage de grid à columns pour l'effet puzzle */}
+                    <div className={`gap-6 mb-20 md:mb-4 ${currentServices.length > 0
+                            ? `columns-1 ${mode === "consultationCustomers" ? "sm:columns-2 lg:columns-3 xl:columns-4" : "sm:columns-2 lg:columns-3"}`
+                            : "flex"
+                        }`}>
                         {currentServices.length > 0 ? (
                             paginatedServices.map((service) => (
-                                <ProductCard
-                                    key={service.id}
-                                    title={service.name}
-                                    description={service.description}
-                                    price={service.price}
-                                    image={service.photo}
-                                    createdAt={service?.duration}
-                                    isAdmin={mode !== "consultationCustomers"}
-                                    actions={mode === "consultationCustomers"
-                                        ? [
-
-                                            <button
-                                                onClick={() => openContactWithData(providerDetail, service)}
-                                                className="flex bg-gradient-to-r from-[#E8524D] to-[#FCE0D6] text-white px-6 py-2.5 rounded-[12px] font-bold text-[14px] transition-all active:scale-95 shadow-lg"
-                                            >
-                                                <span className="font-semibold text-[14px]">
-                                                    Contacter
-                                                </span>
-                                                <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
-                                            </button>
-                                        ]
-                                        : [
-                                            <Button
-                                                key="trigger"
-                                                variant="none"
-                                                size="none"
-                                                ref={openMenuId === service.id ? triggerRef : null}
-                                                onClick={() => setOpenMenuId(openMenuId === service.id ? null : service.id)}
-                                                className="text-black "
-                                            >
-                                                <MoreVerticalIcon size={20} />
-                                            </Button>,
-                                            <ActionMenu
-                                                isOpen={openMenuId === service.id}
-                                                onClose={() => setOpenMenuId(null)}
-                                                triggerRef={triggerRef}
-                                                onEdit={() => navigate(`/add-service`, { state: { data: service } })}
-                                                onDelete={() => handleDeleteClick(service)}
-                                            />
-                                        ]
-                                    }
-                                />
+                                /* Wrapper indispensable pour l'effet puzzle (Masonry) : 
+                                   break-inside-avoid empêche une carte de se couper entre deux colonnes */
+                                <div key={service.id} className="break-inside-avoid mb-6">
+                                    <ProductCard
+                                        title={service.name}
+                                        description={service.description}
+                                        price={service.price}
+                                        image={service.photo}
+                                        createdAt={service?.duration}
+                                        isAdmin={mode !== "consultationCustomers"}
+                                        actions={mode === "consultationCustomers"
+                                            ? [
+                                                <button
+                                                    key="contact"
+                                                    onClick={() => openContactWithData(providerDetail, service)}
+                                                    className="flex items-center gap-2 bg-gradient-to-r from-[#E8524D] to-[#FCE0D6] text-white px-6 py-2.5 rounded-[12px] font-bold text-[14px] transition-all active:scale-95 shadow-lg group/btn"
+                                                >
+                                                    <span className="font-semibold text-[14px]">
+                                                        Contacter
+                                                    </span>
+                                                    <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
+                                                </button>
+                                            ]
+                                            : [
+                                                <Button
+                                                    key="trigger"
+                                                    variant="none"
+                                                    size="none"
+                                                    ref={openMenuId === service.id ? triggerRef : null}
+                                                    onClick={() => setOpenMenuId(openMenuId === service.id ? null : service.id)}
+                                                    className="text-black"
+                                                >
+                                                    <MoreVerticalIcon size={20} />
+                                                </Button>,
+                                                <ActionMenu
+                                                    key="menu"
+                                                    isOpen={openMenuId === service.id}
+                                                    onClose={() => setOpenMenuId(null)}
+                                                    triggerRef={triggerRef}
+                                                    onEdit={() => navigate(`/add-service`, { state: { data: service } })}
+                                                    onDelete={() => handleDeleteClick(service)}
+                                                />
+                                            ]
+                                        }
+                                    />
+                                </div>
                             ))
                         ) : (
                             <NotFound

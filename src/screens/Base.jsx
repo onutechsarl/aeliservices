@@ -58,7 +58,7 @@ export function Base() {
             </aside>
             <main className="relative h-screen overflow-y-auto pb-20 md:pb-0">
                 <div className="flex flex-col relative mx-auto ">
-                    <div className="p-4 md:p-8 lg:p-10">
+                    <div className="py-4 md:p-8 lg:p-10">
 
                         <Header
                             onOpenMenu={() => setIsSidebarOpen(true)}

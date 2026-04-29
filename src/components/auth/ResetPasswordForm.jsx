@@ -22,11 +22,11 @@ export function ResetPasswordForm() {
 
     // Logique des critères de validation
     const passwordCriteria = {
-        hasMinLength: formData.password.length >= 8,
-        hasUpperCase: /[A-Z]/.test(formData.password),
-        hasLowerCase: /[a-z]/.test(formData.password),
-        hasNumber: /[0-9]/.test(formData.password),
-        passwordsMatch: formData.password === formData.confirmPassword && formData.confirmPassword !== ""
+        hasMinLength: (formData.password || "").length >= 8,
+        hasUpperCase: /[A-Z]/.test(formData.password || ""),
+        hasLowerCase: /[a-z]/.test(formData.password || ""),
+        hasNumber: /[0-9]/.test(formData.password || ""),
+        passwordsMatch: formData.password === formData.confirmPassword && (formData.confirmPassword || "") !== ""
     };
 
     // Le bouton est invalide si l'un des critères n'est pas rempli

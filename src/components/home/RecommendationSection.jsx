@@ -53,7 +53,7 @@ export function RecommendationSection() {
 
     return (
         <div>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight flex items-center gap-2 mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight flex items-center gap-2 mb-8 px-4 md:px-0">
                 <BarChart3 className="text-[#E8524D]" size={32} />
                 Recommandations
             </h2>
@@ -73,23 +73,13 @@ export function RecommendationSection() {
                         rating={parseFloat(item.averageRating)}
                         isActive={index === activeIndex}
                         actions={[
-                            // <Button
-                            //     key="btn-consult"
-                            //     variant={index === activeIndex ? 'softRed' : 'ghost'}
-                            //     size={index === activeIndex ? 'lg' : 'sm'}
-                            //     onClick={() => navigate('/consult-provider', { state: { mode: "consultationCustomers", data: item } })}
-                            //     className={index === activeIndex ? 'px-8' : 'text-gray-300'}
-                            // >
-                            //     {index === activeIndex ? 'Consulter catalogue' : 'Voir plus'}
-                            //     <ChevronRight size={16} className="ml-2" />
-                            // </Button>
                             <Button
                                 variant="consultAction"
                                 size="none"
                                 onClick={() => navigate('/consult-provider', { state: { mode: "consultationCustomers", data: item } })}
                             >
                                 <span className="font-semibold text-[14px]">
-                                    Consulter
+                                    Consulter catalogue
                                 </span>
                                 <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
                             </Button>

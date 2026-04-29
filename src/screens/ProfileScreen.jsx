@@ -17,7 +17,7 @@ export function ProfileScreen() {
   const isPendingApplication = application?.status === 'pending';
   return (
     <>
-      <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start`}>
+      <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start px-4 md:px-0`}>
         <div className={`lg:col-span-7 xl:col-span-8 ${isRole === "provider" ? "lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-2" : ""}`}>
           <ProfileSection setIsRole={setIsRole} />
         </div>

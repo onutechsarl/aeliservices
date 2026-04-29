@@ -23,7 +23,7 @@ export function ProductCard({
   const isFavorite = checkData?.data?.isFavorite;
 
   return (
-    <div className="bg-[#f3f3f3] md:p-2.5 rounded-[24px] w-full shadow-sm group">
+    <div className="bg-[#f3f3f3] md:p-2.5 rounded-[24px] w-full h-fit shadow-sm group">
       <div className="bg-white rounded-[20px] overflow-hidden flex flex-col border border-gray-100 relative">
         <div className="relative w-full aspect-[1.3/1] overflow-hidden">
           <img
