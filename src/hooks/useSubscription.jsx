@@ -4,10 +4,10 @@ import { request } from "../api/apiClient";
 /**
  * Custom hook that manages the payments workflow.
  */
-export const usePayments = () => {
+export const usePayments = (page = 1, limit = 20) => {
   return useQuery({
-    queryKey: ["usePayments"],
-    queryFn: () => request("/api/admin/payments", "GET"),
-    refetchOnWindowFocus: false,
+    queryKey: ["usePayments", page, limit],
+    queryFn: () => request(`/api/admin/payments?page=${page}&limit=${limit}`, "GET"),
+    keepPreviousData: true,
   });
 };

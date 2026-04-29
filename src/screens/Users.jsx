@@ -12,38 +12,20 @@ export function Users() {
   const TABS = ["Tout", "Actifs", "Bloquer"];
   const [actifTabs, setActifTabs] = useState("Tout");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
 
-  const { data: apiResponse, isLoading, isError, refetch } = useGetUsers();
-  const allUsers = apiResponse?.data?.users || [];
+  // On passe la currentPage au hook
+  const { data: apiResponse, isLoading, isError, refetch } = useGetUsers(currentPage);
 
-  const getFilteredData = () => {
-    switch (actifTabs) {
-      case "Actifs":
-        return allUsers.filter((user) => user.isActive === true);
-      case "Bloquer":
-        return allUsers.filter((user) => user.isActive === false);
-      default:
-        return allUsers;
-    }
-  };
+  // Les données sont maintenant déjà paginées par le serveur
+  const users = apiResponse?.data?.users || [];
+  const pagination = apiResponse?.data?.pagination;
 
-  const fullFilteredData = getFilteredData();
+  // On utilise les valeurs fournies par l'API au lieu de les calculer
+  const totalPages = pagination?.totalPages || 1;
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = fullFilteredData.slice(
-    indexOfFirstItem,
-    indexOfLastItem,
-  );
-  const totalPages = Math.ceil(fullFilteredData.length / itemsPerPage);
-
-  /**
-   * Handles tab change behavior.
-   */
   const handleTabChange = (tab) => {
     setActifTabs(tab);
-    setCurrentPage(1);
+    setCurrentPage(1); // Retour à la page 1 lors du changement de filtre
   };
 
   return (
@@ -51,13 +33,16 @@ export function Users() {
       <div className="mb-6 flex flex-wrap gap-2">
         <TabButton TABS={TABS} setActifTabs={handleTabChange} />
       </div>
+
       <UserTable
-        users={currentItems}
+        // On passe directement la liste reçue (elle est déjà la "bonne" page)
+        users={users}
         isLoading={isLoading}
         refetch={refetch}
         actifTabs={actifTabs}
         isError={isError}
       />
+
       {totalPages > 1 && (
         <div className="mt-6">
           <Pagination

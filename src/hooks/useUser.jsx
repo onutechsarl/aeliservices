@@ -4,11 +4,12 @@ import { request } from "../api/apiClient";
 /**
  * Custom hook that manages the get users workflow.
  */
-export const useGetUsers = () => {
+export const useGetUsers = (page) => {
   return useQuery({
-    queryKey: ["useGetUsers"],
-    queryFn: () => request("/api/admin/users", "GET"),
+    queryKey: ["useGetUsers", page],
+    queryFn: () => request(`/api/admin/users?page=${page}`, "GET"),
     refetchOnWindowFocus: false,
+    keepPreviousData: true, // Évite que l'écran ne clignote lors du changement de page
   });
 };
 

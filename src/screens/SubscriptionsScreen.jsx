@@ -1,62 +1,35 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Pagination } from "../components/global/Pagination";
 import { TabButton } from "../components/global/TabButton";
 import { SubscriptionList } from "../components/Subscription/SubscriptionList";
 import { usePayments } from "../hooks/useSubscription";
 
-/**
- * UI component responsible for rendering the subscriptions screen section.
- */
+// Mapping pour traduire vos tabs en paramètres API
+const STATUS_MAP = {
+  "Paiement": "PAID,SUCCESS,COMPLETED,ACCEPTED",
+  "Attente": "PENDING,WAITING",
+  "Revoque": "REVOKED,CANCELLED,CANCELED,FAILED"
+};
+
 export function SubscriptionsScreen() {
-  const TABS = ["Paiement", "Attente", "Revoque"];
+  const TABS = ["Paiement", "Attente", "Revoque"]; // Note: "Gratuit" demande un filtre backend spécial
   const [actifTabs, setActifTabs] = useState(TABS[0]);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 15;
 
-  const { data: paymentsResponse, isLoading, isError } = usePayments();
-  const payments = paymentsResponse?.data?.payments || [];
-
-  const filteredPayments = useMemo(() => {
-    switch (actifTabs) {
-      case "Paiement":
-        return payments.filter((payment) =>
-          ["PAID", "SUCCESS", "COMPLETED", "ACCEPTED"].includes(
-            (payment.status || "").toUpperCase(),
-          ),
-        );
-      case "Attente":
-        return payments.filter((payment) =>
-          ["PENDING", "WAITING"].includes(
-            (payment.status || "").toUpperCase(),
-          ),
-        );
-      case "Revoque":
-        return payments.filter((payment) =>
-          ["REVOKED", "CANCELLED", "CANCELED", "FAILED"].includes(
-            (payment.status || "").toUpperCase(),
-          ),
-        );
-      case "Gratuit":
-        return payments.filter((payment) =>
-          Number(payment.amount) === 0 ||
-          (payment.currency && payment.currency.toUpperCase() === "FREE"),
-        );
-      default:
-        return payments;
-    }
-  }, [actifTabs, payments]);
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredPayments.slice(
-    indexOfFirstItem,
-    indexOfLastItem,
+  // Appel API avec pagination et filtre
+  const { data: paymentsResponse, isLoading, isError } = usePayments(
+    currentPage,
+    itemsPerPage,
+    STATUS_MAP[actifTabs] || ""
   );
-  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
+
+  const payments = paymentsResponse?.data?.payments || [];
+  const pagination = paymentsResponse?.data?.pagination;
 
   const handleTabChange = (tab) => {
     setActifTabs(tab);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset à la page 1 à chaque changement d'onglet
   };
 
   return (
@@ -64,16 +37,19 @@ export function SubscriptionsScreen() {
       <div className="mb-6 flex flex-wrap gap-2">
         <TabButton TABS={TABS} setActifTabs={handleTabChange} />
       </div>
+
       <SubscriptionList
-        payments={currentItems}
+        payments={payments} // Données déjà filtrées par le serveur
         isLoading={isLoading}
         isError={isError}
       />
-      {totalPages > 1 && (
+
+      {/* Pagination basée sur les infos du serveur */}
+      {pagination && pagination.totalPages > 1 && (
         <div className="mt-6">
           <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
             onPageChange={(page) => setCurrentPage(page)}
           />
         </div>

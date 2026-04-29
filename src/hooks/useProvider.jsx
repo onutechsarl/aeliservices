@@ -86,17 +86,11 @@ export const useDeactivateAccountProvider = () => {
 /**
  * Custom hook that manages the get provider list workflow.
  */
-export const useGetProviderList = (params = {}) => {
-  const queryString = new URLSearchParams(
-    Object.fromEntries(
-      Object.entries(params).filter(([_, v]) => v != null && v !== ""),
-    ),
-  ).toString();
-
+// Exemple pour useGetProviderList (faites pareil pour les autres)
+export const useGetProviderList = (page = 1, params = {}) => {
   return useQuery({
-    queryKey: ["useGetProviderList", params],
-    queryFn: () => request(`/api/admin/providers?${queryString}`, "GET"),
-    refetchOnWindowFocus: false,
-    enabled: true,
+    queryKey: ["useGetProviderList", page, params],
+    queryFn: () => request(`/api/admin/providers?page=${page}&limit=12`, "GET"),
+    keepPreviousData: true,
   });
 };
