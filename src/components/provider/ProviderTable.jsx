@@ -225,17 +225,18 @@ export const ProviderTable = ({
               </td>
 
               <td className="px-6 py-4">
-                <div className="flex gap-1 flex-wrap max-w-[150px]">
+                <div className="flex flex-col items-start gap-1 max-w-[150px]"> {/* Retrait de flex-wrap pour rester sur une ligne */}
                   {app.activities?.slice(0, 2).map((act, idx) => (
                     <span
                       key={idx}
-                      className="bg-red-50 text-red-600 text-[9px] font-bold uppercase px-2 py-0.5 rounded"
+                      title={act} // Affiche le texte complet au survol
+                      className="bg-red-50 text-red-600 text-[9px] font-bold uppercase px-2 py-0.5 rounded truncate max-w-[60px]"
                     >
                       {act}
                     </span>
                   ))}
                   {app.activities?.length > 2 && (
-                    <span className="text-[9px] text-slate-400">
+                    <span className="text-[9px] text-slate-400 flex-shrink-0">
                       +{app.activities.length - 2}
                     </span>
                   )}
@@ -268,7 +269,7 @@ export const ProviderTable = ({
 
               <td className="px-6 py-4">
                 <Badge
-                  status={app.verificationStatus}
+                  status={app.verificationStatus || app.status}
                   variant={
                     app.verificationStatus === "approved"
                       ? "green"

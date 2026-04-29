@@ -87,10 +87,16 @@ export const useDeactivateAccountProvider = () => {
  * Custom hook that manages the get provider list workflow.
  */
 // Exemple pour useGetProviderList (faites pareil pour les autres)
+// Dans ton fichier hooks
 export const useGetProviderList = (page = 1, params = {}) => {
+  const queryString = new URLSearchParams({
+    page,
+    limit: 12,
+    ...params // Ici on passera isActive=true ou false
+  }).toString();
+
   return useQuery({
     queryKey: ["useGetProviderList", page, params],
-    queryFn: () => request(`/api/admin/providers?page=${page}&limit=12`, "GET"),
-    keepPreviousData: true,
+    queryFn: () => request(`/api/admin/providers?${queryString}`, "GET"),
   });
 };
