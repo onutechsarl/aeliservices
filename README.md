@@ -229,7 +229,8 @@ curl http://localhost:5000/api/health/db
 | Method | Endpoint | Description |
 |---------|----------|-------------|
 | GET | `/` | List (paginated, filterable) |
-| GET | `/:id` | Provider details |
+| GET | `/:id` | Provider details (public) |
+| GET | `/by-slug/:slug` | Public profile via shareable link (no auth required) |
 | POST | `/apply` | Provider application (client→provider) |
 | GET | `/my-application` | My application status |
 | PUT | `/:id` | Edit profile |
@@ -282,6 +283,9 @@ curl http://localhost:5000/api/health/db
 | PUT | `/providers/:id/feature` | Feature provider |
 | GET | `/reviews` | All reviews |
 | PUT | `/reviews/:id/visibility` | Moderate review |
+| GET | `/analytics` | Top endpoints + global stats (top 20 routes, errors, avg duration) |
+| GET | `/analytics/hourly?date=YYYY-MM-DD` | Hourly request breakdown for a date |
+| GET | `/analytics/daily-active-users?days=N` | Distinct users logged in per day (1-365 days, default 30) |
 
 ### Search (`/api/search`)
 | Method | Endpoint | Description |

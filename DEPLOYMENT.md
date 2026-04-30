@@ -83,6 +83,8 @@ docker compose exec api npx sequelize-cli db:migrate
 
 La migration `20260331112000-update-admin-credentials` crée (ou met à jour) le compte administrateur à partir des variables `AELI_ADMIN_EMAIL` / `AELI_ADMIN_PASSWORD`.
 
+La migration `20260430120000-add-slug-to-providers` ajoute la colonne `slug` sur la table `providers` et **backfill** les slugs des prestataires déjà en base à partir de leur `business_name` (ex. `"Eco Prestige"` → `eco-prestige`). À lancer une seule fois après le déploiement de la feature de partage de profil.
+
 ## 5. Seeder les données de production
 
 Seul le jeu de **catégories** est inséré. Aucune donnée fictive (utilisateurs, prestataires, services, avis) n'est seedée.
