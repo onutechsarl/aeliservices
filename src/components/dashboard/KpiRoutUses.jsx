@@ -85,6 +85,11 @@ export const KpiRoutUses = () => {
   const totalErrors = Number(stats?.totalErrors || 0);
   const avgDuration = Number(stats?.avgDuration || 0);
   const errorRate = totalRequests > 0 ? (totalErrors / totalRequests) * 100 : 0;
+  const formattedTotalRequests = new Intl.NumberFormat("fr-FR", {
+    notation: "compact",
+    compactDisplay: "short",
+    maximumFractionDigits: 1,
+  }).format(totalRequests);
 
   return (
     <Card className="h-full">
@@ -122,8 +127,11 @@ export const KpiRoutUses = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-xl border border-gray-100 p-4 bg-gray-50">
               <p className="text-xs uppercase text-gray-500 mb-1">Requêtes</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {totalRequests.toLocaleString()}
+              <p
+                className="text-2xl font-bold text-gray-900 truncate"
+                title={totalRequests.toLocaleString("fr-FR")}
+              >
+                {formattedTotalRequests}
               </p>
             </div>
             <div className="rounded-xl border border-gray-100 p-4 bg-gray-50">
