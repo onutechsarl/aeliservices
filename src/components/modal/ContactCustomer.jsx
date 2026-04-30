@@ -5,11 +5,13 @@ import { Button } from '../../ui/Button';
 import { Input } from '../../ui/Input';
 import { useInfoUserConnected } from '../../hooks/useUser';
 import { useContact } from '../../hooks/useContact';
+import { FeedbackCard } from './FeedbackCard';
 
 /**
  * UI component responsible for rendering contact customer.
  */
 export function ContactCustomer({ closeContact, dataContact }) {
+  const [showFeedbackCard, setShowFeedbackCard] = useState(false);
 
   const { data: userData } = useInfoUserConnected();
   const user = userData?.data?.user;
@@ -61,7 +63,7 @@ export function ContactCustomer({ closeContact, dataContact }) {
   useEffect(() => {
     if (isSuccessContact && dataResponse?.success) {
       toast.success(dataResponse.message);
-      closeContact();
+      setShowFeedbackCard(true);
     }
 
     if (isSuccessContact && dataResponse?.success === false) {
@@ -78,6 +80,15 @@ export function ContactCustomer({ closeContact, dataContact }) {
       }
     }
   }, [isSuccessContact, isErrorContact, dataResponse, errorResponse, closeContact]);
+
+  if (showFeedbackCard) {
+    return (
+      <FeedbackCard
+        closeFeedback={closeContact}
+        providerData={dataContact}
+      />
+    );
+  }
 
   return (
     <div

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { request } from "../api/apiClient";
 
 /**
@@ -25,6 +25,7 @@ export const useGetProviderApplication = () => {
 /**
  * Custom hook that manages get provider list.
  */
+
 export const useGetProviderList = (params = {}) => {
 
     const queryString = new URLSearchParams(
@@ -32,10 +33,14 @@ export const useGetProviderList = (params = {}) => {
     ).toString();
 
     return useQuery({
-        queryKey: ["useGetProviderList", params], // La clé change quand les filtres changent
+        queryKey: ["useGetProviderList", params],
         queryFn: () => request(`/api/providers?${queryString}`, "GET"),
         refetchOnWindowFocus: false,
-        enabled: true
+        enabled: true,
+        // CORRECTION : Garde les données précédentes en cache pendant le nouveau chargement
+        placeholderData: keepPreviousData,
+        // Optionnel : définit une durée de mise en cache pour ne pas re-fetcher inutilement
+        staleTime: 5 * 60 * 1000, // 5 minutes
     });
 };
 
