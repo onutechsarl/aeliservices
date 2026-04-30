@@ -231,52 +231,35 @@ const getProviders = asyncHandler(async (req, res) => {
   i18nResponse(req, res, 200, "provider.list", responseData);
 });
 
+const PROVIDER_PUBLIC_ATTRIBUTES = [
+  "id",
+  "slug",
+  "businessName",
+  "description",
+  "location",
+  "address",
+  "whatsapp",
+  "facebook",
+  "instagram",
+  "businessContact",
+  "photos",
+  "profilePhoto",
+  "averageRating",
+  "totalReviews",
+  "viewsCount",
+  "contactsCount",
+  "isVerified",
+  "isFeatured",
+  "createdAt",
+];
+
 /**
- * @desc    Get single provider details
- * @route   GET /api/providers/:id
- * @access  Public
+ * Hydrate the public payload for a provider page (services, reviews,
+ * subscription-aware visibility, view counter).
  */
-const getProviderById = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  // Fetch provider with user info only (avoid deep nesting)
-  const provider = await Provider.findByPk(id, {
-    attributes: [
-      "id",
-      "businessName",
-      "description",
-      "location",
-      "address",
-      "whatsapp",
-      "facebook",
-      "instagram",
-      "businessContact",
-      "photos",
-      "profilePhoto",
-      "averageRating",
-      "totalReviews",
-      "viewsCount",
-      "contactsCount",
-      "isVerified",
-      "isFeatured",
-      "createdAt",
-    ],
-    include: [
-      {
-        model: User,
-        as: "user",
-        attributes: ["id", "firstName", "lastName", "profilePhoto", "phone"],
-      },
-    ],
-  });
-
-  if (!provider) {
-    throw new AppError(req.t("provider.notFound"), 404);
-  }
-
-  // Fetch services separately (optimized query)
+const buildProviderPayload = async (provider, req) => {
   const services = await Service.findAll({
-    where: { providerId: id, isActive: true },
+    where: { providerId: provider.id, isActive: true },
     attributes: [
       "id",
       "name",
@@ -296,9 +279,8 @@ const getProviderById = asyncHandler(async (req, res) => {
     order: [["createdAt", "DESC"]],
   });
 
-  // Fetch reviews separately (optimized query with limit)
   const reviews = await Review.findAll({
-    where: { providerId: id, isVisible: true },
+    where: { providerId: provider.id, isVisible: true },
     attributes: ["id", "rating", "comment", "createdAt"],
     include: [
       {
@@ -311,17 +293,14 @@ const getProviderById = asyncHandler(async (req, res) => {
     limit: 10,
   });
 
-  // Combine results
   const providerData = provider.toJSON();
   providerData.services = services;
   providerData.reviews = reviews;
 
-  // Check subscription status - hide contacts & images if expired
   const subscriptionStatus = await Subscription.getStatus(provider.id);
   providerData.subscriptionActive = subscriptionStatus.isActive;
 
   if (!subscriptionStatus.isActive) {
-    // Expired: hide contact info and images
     providerData.whatsapp = null;
     providerData.facebook = null;
     providerData.instagram = null;
@@ -335,7 +314,6 @@ const getProviderById = asyncHandler(async (req, res) => {
     );
   }
 
-  // Increment view count (don't wait)
   provider.incrementViews().catch((err) => {
     logger.error("View increment error:", {
       error: err.message,
@@ -344,6 +322,61 @@ const getProviderById = asyncHandler(async (req, res) => {
     });
   });
 
+  return providerData;
+};
+
+/**
+ * @desc    Get single provider details
+ * @route   GET /api/providers/:id
+ * @access  Public
+ */
+const getProviderById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const provider = await Provider.findByPk(id, {
+    attributes: PROVIDER_PUBLIC_ATTRIBUTES,
+    include: [
+      {
+        model: User,
+        as: "user",
+        attributes: ["id", "firstName", "lastName", "profilePhoto", "phone"],
+      },
+    ],
+  });
+
+  if (!provider) {
+    throw new AppError(req.t("provider.notFound"), 404);
+  }
+
+  const providerData = await buildProviderPayload(provider, req);
+  i18nResponse(req, res, 200, "provider.details", { provider: providerData });
+});
+
+/**
+ * @desc    Get a provider's public profile by slug (shareable link)
+ * @route   GET /api/providers/by-slug/:slug
+ * @access  Public
+ */
+const getProviderBySlug = asyncHandler(async (req, res) => {
+  const { slug } = req.params;
+
+  const provider = await Provider.findOne({
+    where: { slug },
+    attributes: PROVIDER_PUBLIC_ATTRIBUTES,
+    include: [
+      {
+        model: User,
+        as: "user",
+        attributes: ["id", "firstName", "lastName", "profilePhoto", "phone"],
+      },
+    ],
+  });
+
+  if (!provider) {
+    throw new AppError(req.t("provider.notFound"), 404);
+  }
+
+  const providerData = await buildProviderPayload(provider, req);
   i18nResponse(req, res, 200, "provider.details", { provider: providerData });
 });
 
@@ -826,6 +859,7 @@ module.exports = {
   createProvider,
   getProviders,
   getProviderById,
+  getProviderBySlug,
   updateProvider,
   deleteProviderPhoto,
   getMyProfile,

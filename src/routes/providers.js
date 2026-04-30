@@ -4,6 +4,7 @@ const {
     createProvider,
     getProviders,
     getProviderById,
+    getProviderBySlug,
     updateProvider,
     deleteProviderPhoto,
     getMyProfile,
@@ -32,6 +33,9 @@ router.get('/', listProvidersValidation, validate, cacheMiddleware(600), getProv
 
 // Public get by ID (must be before protect middleware)
 router.get('/:id([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', cacheMiddleware(300), getProviderById);
+
+// Public get by slug — shareable link for the provider's public profile
+router.get('/by-slug/:slug', cacheMiddleware(300), getProviderBySlug);
 
 // Protected routes (require authentication)
 router.use(protect);

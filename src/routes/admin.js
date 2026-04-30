@@ -39,7 +39,7 @@ const {
   exportReportPDF,
 } = require("../controllers/exportController");
 const { protect, restrictTo } = require("../middlewares/auth");
-const { AuditLog, ApiUsage, BannedIP } = require("../models");
+const { AuditLog, ApiUsage, BannedIP, SecurityLog } = require("../models");
 const { asyncHandler } = require("../middlewares/errorHandler");
 const { i18nResponse } = require("../utils/helpers");
 const { clearIPCache } = require("../middlewares/ipBanlist");
@@ -156,6 +156,48 @@ router.get(
   }),
 );
 
+/**
+ * Daily active users — counts the distinct users who logged in successfully
+ * each day over the requested window (default: last 30 days).
+ *
+ *   GET /api/admin/analytics/daily-active-users?days=30
+ *
+ * Returns: [{ day: 'YYYY-MM-DD', count: <distinct users> }, ...]
+ */
+router.get(
+  "/analytics/daily-active-users",
+  asyncHandler(async (req, res) => {
+    const { fn, col, literal, Op } = require("sequelize");
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 365);
+
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    since.setHours(0, 0, 0, 0);
+
+    const rows = await SecurityLog.findAll({
+      attributes: [
+        [fn("date_trunc", "day", col("created_at")), "day"],
+        [fn("COUNT", fn("DISTINCT", col("user_id"))), "count"],
+      ],
+      where: {
+        eventType: "login_success",
+        userId: { [Op.ne]: null },
+        createdAt: { [Op.gte]: since },
+      },
+      group: [literal("day")],
+      order: [[literal("day"), "ASC"]],
+      raw: true,
+    });
+
+    const series = rows.map((r) => ({
+      day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day).slice(0, 10),
+      count: Number(r.count),
+    }));
+
+    res.json({ success: true, data: { days, series } });
+  }),
+);
+
 // ============ IP BANLIST ============
 router.get(
   "/banned-ips",
@@ -202,7 +244,7 @@ const { getAllPayments } = require("../controllers/paymentController");
 router.get("/payments", getAllPayments);
 
 // ============ SECURITY LOGS ============
-const SecurityLog = require("../models/SecurityLog");
+// SecurityLog is already imported at the top of the file.
 
 // Get security logs with filters
 router.get(

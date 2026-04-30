@@ -8,6 +8,7 @@ const swaggerUi = require('swagger-ui-express');
 require('dotenv').config();
 
 const { generalLimiter } = require('./middlewares/rateLimiter');
+const { analyticsMiddleware } = require('./middlewares/analytics');
 const { errorHandler, notFound } = require('./middlewares/errorHandler');
 const { checkSessionActivity } = require('./middlewares/security');
 const { csrfTokenMiddleware, csrfValidation, getCSRFToken } = require('./middlewares/csrf');
@@ -149,6 +150,9 @@ app.get('/api/health/live', livenessProbe);
 
 // CSRF token endpoint (for SPA frontends)
 app.get('/api/csrf-token', getCSRFToken);
+
+// Track API usage (per-endpoint stats, fed to ApiUsage table)
+app.use('/api', analyticsMiddleware);
 
 // Mount routes
 app.use('/api/auth', authRoutes);

@@ -1,6 +1,26 @@
 const { DataTypes } = require('sequelize');
+const slugify = require('slugify');
 const { sequelize } = require('../config/database');
 const { encrypt, decrypt, encryptIfNeeded } = require('../utils/encryption');
+
+const slugifyOptions = { lower: true, strict: true, locale: 'fr', trim: true };
+
+const buildUniqueSlug = async (provider, baseName) => {
+    const base = slugify(baseName || 'prestataire', slugifyOptions) || 'prestataire';
+    let candidate = base;
+    let suffix = 2;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        const existing = await provider.constructor.findOne({
+            where: { slug: candidate },
+            attributes: ['id'],
+            paranoid: false
+        });
+        if (!existing || existing.id === provider.id) return candidate;
+        candidate = `${base}-${suffix}`;
+        suffix += 1;
+    }
+};
 
 const Provider = sequelize.define('Provider', {
     id: {
@@ -27,6 +47,12 @@ const Provider = sequelize.define('Provider', {
                 msg: 'Le nom de l\'entreprise est requis'
             }
         }
+    },
+    slug: {
+        type: DataTypes.STRING(280),
+        allowNull: true,
+        unique: true,
+        comment: 'URL-friendly identifier for public profile sharing'
     },
     description: {
         type: DataTypes.TEXT,
@@ -189,14 +215,20 @@ const Provider = sequelize.define('Provider', {
         }
     ],
     hooks: {
-        beforeCreate: (provider) => {
+        beforeCreate: async (provider) => {
             if (provider.whatsapp) {
                 provider.whatsapp = encryptIfNeeded(provider.whatsapp);
             }
+            if (!provider.slug) {
+                provider.slug = await buildUniqueSlug(provider, provider.businessName);
+            }
         },
-        beforeUpdate: (provider) => {
+        beforeUpdate: async (provider) => {
             if (provider.changed('whatsapp') && provider.whatsapp) {
                 provider.whatsapp = encryptIfNeeded(provider.whatsapp);
+            }
+            if (provider.changed('businessName') && !provider.changed('slug')) {
+                provider.slug = await buildUniqueSlug(provider, provider.businessName);
             }
         },
         afterFind: (result) => {
