@@ -7,6 +7,7 @@ import { ProviderStatusList } from "../components/dashboard/ProviderStatusList";
 import { UsersAnalytics } from "../components/dashboard/UsersAnalytics";
 import { UserComposition } from "../components/dashboard/UserComposition";
 import { LastusersRegister } from "../components/dashboard/LastusersRegister";
+import { KpiRoutUses } from "../components/dashboard/KpiRoutUses";
 
 /**
  * UI component responsible for rendering the dashboard section.
@@ -42,6 +43,7 @@ export function Dashboard() {
             </div>
           </div>
         </div>
+        <KpiRoutUses />
         <LastusersRegister />
       </div>
       <ToastContainer position="bottom-center" />

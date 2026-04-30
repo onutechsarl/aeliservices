@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { request } from "../api/apiClient";
 
 /**
@@ -40,7 +40,36 @@ export const useSecurityLogs = () => {
 export const useAnalyticsStatistiquesAPI = () => {
   return useQuery({
     queryKey: ["useAnalyticsStatistiquesAPI"],
-    queryFn: () => request("/api/admin/analytics-StatistiquesAPI", "GET"),
+    queryFn: () => request("/api/admin/analytics", "GET"),
+    refetchOnWindowFocus: false,
+  });
+};
+
+/**
+ * Custom hook that manages hourly analytics workflow.
+ */
+export const useAnalyticsHourly = (date) => {
+  return useQuery({
+    queryKey: ["useAnalyticsHourly", date],
+    queryFn: () => request(`/api/admin/analytics/hourly?date=${date}`, "GET"),
+    enabled: Boolean(date),
+    refetchOnWindowFocus: false,
+  });
+};
+
+/**
+ * Custom hook that manages daily active users analytics workflow.
+ */
+export const useAnalyticsDailyActiveUsers = (days = 30) => {
+  const clampedDays = Math.min(365, Math.max(1, Number(days) || 30));
+
+  return useQuery({
+    queryKey: ["useAnalyticsDailyActiveUsers", clampedDays],
+    queryFn: () =>
+      request(
+        `/api/admin/analytics/daily-active-users?days=${clampedDays}`,
+        "GET"
+      ),
     refetchOnWindowFocus: false,
   });
 };
