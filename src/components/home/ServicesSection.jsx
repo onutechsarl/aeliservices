@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { toast } from "react-toastify";
 import { useNavigate, useOutletContext } from 'react-router-dom'
-import { ArrowRight, Filter, ShoppingBag, AlertCircle, ChevronRight, Share2 } from 'lucide-react'
+import { ArrowRight, Filter, ShoppingBag, AlertCircle, ChevronRight, Share2 } from 'lucide-react';
 import { ProviderCard } from '../../ui/ProviderCard';
 import { Button } from '../../ui/Button';
 import { Input } from '../../ui/Input';
@@ -145,15 +145,13 @@ export function ServicesSection() {
                                             </span>
                                             <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
                                         </Button>
-                                        <Button
-                                            variant="none"
-                                            size="none"
-                                            onClick={() => handleCopyPublicLink(item)}
-                                            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
-                                        >
-                                            <Share2 size={16} className="text-[#E8524D]" />
-                                        </Button>
-                                    </div>
+                                    </div>,
+                                    <button
+                                        onClick={() => handleCopyPublicLink(item)}
+                                        className="p-2 rounded-lg border-gray-200 bg-white"
+                                    >
+                                        <Share2 size={13} className="text-[#E8524D]" />
+                                    </button>
                                 ]}
                             />
                         ))}

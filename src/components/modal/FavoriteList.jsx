@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { toast } from "react-toastify";
 import { useNavigate } from 'react-router-dom';
 import { ProviderCard } from '../../ui/ProviderCard';
-import { Star, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
+import { Star, Share2, AlertCircle, ChevronRight } from 'lucide-react';
 import { ModalCard } from '../../ui/ModalCard';
 import { FavoriteCard } from '../../ui/FavoriteCard';
 import { CountItems } from '../global/CountItems';
@@ -46,6 +46,20 @@ export function FavoriteList({ closeFavorite }) {
             }
         }
     }, [isSuccessDeleteFavorite, isErrorDeleteFavorite, dataDeleteFavorite, errorDeleteFavorite]);
+
+    const handleCopyPublicLink = async (provider) => {
+        try {
+            if (!provider?.slug) {
+                toast.error("Lien public indisponible pour ce prestataire.");
+                return;
+            }
+            const publicUrl = `${window.location.origin}/p/${provider.slug}`;
+            await navigator.clipboard.writeText(publicUrl);
+            toast.success("Lien public copié.");
+        } catch (error) {
+            toast.error("Impossible de copier le lien.");
+        }
+    };
 
     return (
         <ModalCard
@@ -119,6 +133,12 @@ export function FavoriteList({ closeFavorite }) {
                                                     aria-label="Remove from favorites "
                                                 >
                                                     <Star className="w-4 h-4 text-yellow-500 fill-current hover:scale-110 transition-transform" />
+                                                </button>,
+                                                <button
+                                                    onClick={() => handleCopyPublicLink(provider)}
+                                                    className="absolute top-10 right-2 md:top-12 md:right-3 p-2 rounded-lg border-gray-200 bg-white "
+                                                >
+                                                    <Share2 size={12} className="text-[#E8524D]" />
                                                 </button>
                                             ]}
                                         />

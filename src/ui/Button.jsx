@@ -31,6 +31,7 @@ export function Button({
     tab: 'bg-[#E8524D] text-white shadow-lg hover:scale-110 border-0',
     filterSelected: 'bg-red-50 text-[#E8524D] font-bold',
     filterGhost: 'text-gray-600 hover:bg-gray-50 font-medium',
+    none: '',
   }
 
   const sizes = {

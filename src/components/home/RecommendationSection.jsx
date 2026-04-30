@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ChevronRight, BarChart3 } from 'lucide-react'
-import { Button } from '../../ui/Button'
+import React, { useState, useEffect, useRef } from 'react';
+import { toast } from "react-toastify";
+import { useNavigate } from 'react-router-dom';
+import { ChevronRight, BarChart3, Share2 } from 'lucide-react';
+import { Button } from '../../ui/Button';
 import { RecommendationCard } from '../../ui/RecommendationCard';
 import { useGetProviderList } from '../../hooks/useProvider';
 import { Loading } from '../global/Loading';
@@ -45,6 +46,22 @@ export function RecommendationSection() {
         }
     }, [activeIndex, featuredProviders.length])
 
+    const handleCopyPublicLink = async (provider) => {
+        try {
+            if (!provider?.slug) {
+                toast.error("Lien public indisponible pour ce prestataire.");
+                return;
+            }
+            const publicUrl = `${window.location.origin}/p/${provider.slug}`;
+            await navigator.clipboard.writeText(publicUrl);
+            toast.success("Lien public copié.");
+        } catch (error) {
+            toast.error("Impossible de copier le lien.");
+        }
+    };
+
+
+
     if (isLoading) return (
         <Loading className="py-10" size="small" title="Chargement des recommandations..." />
     );
@@ -79,10 +96,16 @@ export function RecommendationSection() {
                                 onClick={() => navigate('/consult-provider', { state: { mode: "consultationCustomers", data: item } })}
                             >
                                 <span className="font-semibold text-[14px]">
-                                    Consulter catalogue
+                                    Consulter
                                 </span>
                                 <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
-                            </Button>
+                            </Button>,
+                            <button
+                                onClick={() => handleCopyPublicLink(item)}
+                                className="p-3 rounded-lg border-gray-200 bg-gray-50"
+                            >
+                                <Share2 size={15} className="text-[#E8524D]" />
+                            </button>
                         ]}
                     />
                 ))}

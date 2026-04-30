@@ -40,17 +40,24 @@ export function ProviderCard({
           <div className="block md:block absolute inset-0 bg-gradient-to-t from-black/40 via-black/5 to-transparent" />
           <div className="absolute -bottom-20 -right-20 w-64 h-30 bg-purple-600 rounded-full blur-[100px] opacity-20 z-0"></div>
           {favorite ? (
-            actions[1]
+            <div className="flex flex-col gap-2">
+              {actions[1]}
+              {actions[2]}
+            </div>
+
           ) : (
-            <button
-              onClick={(e) => { e.stopPropagation(); onFavorite(); }}
-              className="absolute top-2 right-2 md:top-3 md:right-3 bg-white/90 backdrop-blur-sm p-1.5 rounded-lg shadow-sm hover:scale-110 transition-transform z-20"
-            >
-              <Star
-                size={16}
-                className={`${isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}
-              />
-            </button>
+            <div className="absolute top-2 right-2 md:top-3 md:right-3 flex flex-col items-center gap-2 z-20">
+              <button
+                onClick={(e) => { e.stopPropagation(); onFavorite(); }}
+                className="bg-white/90 backdrop-blur-sm p-1.5 rounded-lg shadow-sm hover:scale-110 transition-transform"
+              >
+                <Star
+                  size={16}
+                  className={`${isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}
+                />
+              </button>
+              {actions?.[1]}
+            </div>
           )}
         </div>
         <div className="flex-1 p-3 md:p-4 flex flex-col justify-between md:gap-3 min-w-0">

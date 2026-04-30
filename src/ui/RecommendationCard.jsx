@@ -55,8 +55,8 @@ export function RecommendationCard({ title, description, location, rating, isAct
                     </p> */}
                 </div>
 
-                <div className="mt-4">
-                    {actions && actions[0]}
+                <div className="flex items-center gap-2 mt-4">
+                    {actions && actions[0]} {actions && actions?.[1]}
                 </div>
             </div>
 
