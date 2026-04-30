@@ -79,7 +79,7 @@ export function Header({ onOpenMenu, openSidebar, filters, setFilters }) {
     <header className={`flex flex-col md:flex-row md:items-start px-4 md:px-0 ${openSidebar ? "justify-between " : "justify-end "} gap-4 mb-8`}>
       <div className="w-full flex items-center justify-between gap-4 md:hidden">
         <div className="flex items-center gap-3">
-          <img src='./aelilogo.svg' alt='logo' className="w-10 h-10 flex-shrink-0" />
+          <img src='/aelilogo.svg' alt='logo' className="w-10 h-10 flex-shrink-0" />
           <span className="font-bold text-xl pacifico-regular">AELI Services</span>
         </div>
         <Button onClick={onOpenMenu}

@@ -181,7 +181,7 @@ export function Sidebar({ isOpenSidebar, showStats, onOpenMessage, onOpenFavorit
         </button>
         <div className={`flex items-center justify-between w-full px-6 mb-12 ${isCollapsed ? 'md:justify-center md:px-0' : 'md:justify-start md:px-6'}`}>
           <div className="flex items-center gap-3">
-            <img src='./aelilogo.svg' alt='logo' className="w-10 h-10 flex-shrink-0" />
+            <img src='/aelilogo.svg' alt='logo' className="w-10 h-10 flex-shrink-0" />
             <span className={`font-bold text-xl  md:transition-opacity pacifico-regular ${isCollapsed ? 'md:hidden' : 'md:block'}`}>
               AELI Services
             </span>

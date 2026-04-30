@@ -237,7 +237,7 @@ export function ServiceProvider({ mode, dataConsult, slug }) {
                                     </span>
                                 ))}
                             </div>
-                             <div className="flex gap-4 mt-2 items-center">
+                            <div className="flex gap-4 mt-2 items-center">
                                 <Button
                                     variant="gradient"
                                     size="md"
@@ -259,6 +259,14 @@ export function ServiceProvider({ mode, dataConsult, slug }) {
                                 >
                                     noter
                                 </Button>
+                                <Button
+                                    variant="none"
+                                    size="none"
+                                    onClick={handleCopyPublicLink}
+                                    className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
+                                >
+                                    <Share2 size={16} className="text-[#E8524D]" />
+                                </Button>
                                 <div className="flex">
                                     {[...Array(5)].map((_, i) => (
                                         <Star
@@ -268,14 +276,6 @@ export function ServiceProvider({ mode, dataConsult, slug }) {
                                         />
                                     ))}
                                 </div>
-                                <Button
-                                    variant="none"
-                                    size="none"
-                                    onClick={handleCopyPublicLink}
-                                    className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
-                                >
-                                    <Share2 size={16} className="text-[#E8524D]" />
-                                </Button>
                             </div>
                         </div>
                     </div>
@@ -330,8 +330,8 @@ export function ServiceProvider({ mode, dataConsult, slug }) {
 
                     {/* Conteneur principal modifié : passage de grid à columns pour l'effet puzzle */}
                     <div className={`gap-6 mb-20 md:mb-4 ${currentServices.length > 0
-                            ? `columns-1 ${mode === "consultationCustomers" ? "sm:columns-2 lg:columns-3 xl:columns-4" : "sm:columns-2 lg:columns-3"}`
-                            : "flex"
+                        ? `columns-1 ${mode === "consultationCustomers" ? "sm:columns-2 lg:columns-3 xl:columns-4" : "sm:columns-2 lg:columns-3"}`
+                        : "flex"
                         }`}>
                         {currentServices.length > 0 ? (
                             paginatedServices.map((service) => (
