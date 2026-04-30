@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import { StatsProvider } from '../components/provider/StatsProvider';
 import { ServiceProvider } from '../components/provider/ServiceProvider';
@@ -10,8 +10,12 @@ import { ServiceProvider } from '../components/provider/ServiceProvider';
 export function ProviderScreen() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { providerShowStats, setProviderShowStats } = useOutletContext();
-    const mode = location.state?.mode || "defaultMode";
+    const { slug } = useParams();
+    const outletContext = useOutletContext() || {};
+    const providerShowStats = outletContext?.providerShowStats || false;
+    const setProviderShowStats = outletContext?.setProviderShowStats || (() => { });
+
+    const mode = slug ? "consultationCustomers" : (location.state?.mode || "defaultMode");
     const data = location.state?.data || [];
     const [showStats, setShowStats] = useState(false)
 
@@ -31,7 +35,7 @@ export function ProviderScreen() {
         <main className="flex-1 flex flex-col xl:flex-row h-screen md:overflow-hidden relative">
             <div className="flex-1 h-full md:overflow-y-auto py-4 md:p-2 md:pr-4 no-scrollbar">
                 <div className="mx-auto pb-4 md:pb-0 px-4 md:px-0">
-                    <ServiceProvider mode={mode} dataConsult={data} />
+                    <ServiceProvider mode={mode} dataConsult={data} slug={slug} />
                 </div>
             </div>
             {showStats && (
@@ -40,7 +44,7 @@ export function ProviderScreen() {
                     onClick={() => setShowStats(false)}
                 />
             )}
-            {mode != "consultationCustomers" && (
+            {mode != "consultationCustomers" && !!outletContext && (
                 < StatsProvider showStats={showStats} setHideStats={() => setShowStats(false)} setShowStats={() => setShowStats(true)} />
             )}
             <ToastContainer position="bottom-center" />

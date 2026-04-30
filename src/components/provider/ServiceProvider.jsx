@@ -1,37 +1,72 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { toast } from "react-toastify";
 import { ProductCard } from '../../ui/productCard';
 import { Button, CategoryTag } from '../../ui/Button';
-import { MoreVerticalIcon, Star, MapPin, ShoppingBag, AlertCircle, ChevronRight, MoreVertical } from 'lucide-react';
+import { MoreVerticalIcon, Star, ShoppingBag, AlertCircle, ChevronRight, Share2 } from 'lucide-react';
 import { ActionMenu } from '../global/ActionMenu';
 import { NotFound } from '../global/Notfound';
 import { Pagination } from '../global/Pagination';
 import { ReviewList } from './ReviewList';
 import { useInfoUserConnected } from '../../hooks/useUser';
 import { useGetServicesByProvider, useDeleteServices } from '../../hooks/useServices';
-import { useGetProviderByid } from '../../hooks/useProvider';
+import { useGetProviderByid, useGetProviderBySlug } from '../../hooks/useProvider';
 import { Loading } from '../global/Loading';
 
 /**
  * UI component responsible for rendering service provider.
  */
-export function ServiceProvider({ mode, dataConsult }) {
+export function ServiceProvider({ mode, dataConsult, slug }) {
     const navigate = useNavigate();
+    const location = useLocation();
     const [openMenuId, setOpenMenuId] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const triggerRef = useRef(null);
-    const { openContact, openFeedback, openConfirm, setConfirmConfig, closeModal2, setDataContact } = useOutletContext();
+    const outletContext = useOutletContext() || {};
+    const openContact = outletContext?.openContact || (() => { });
+    const openFeedback = outletContext?.openFeedback || (() => { });
+    const openConfirm = outletContext?.openConfirm || (() => { });
+    const setConfirmConfig = outletContext?.setConfirmConfig || (() => { });
+    const closeModal2 = outletContext?.closeModal2 || (() => { });
+    const setDataContact = outletContext?.setDataContact || (() => { });
     const [rating, setRating] = useState(5);
     const [customerContact, SetcustomerContact] = useState(false);
 
     const { data: userData } = useInfoUserConnected();
+    const isAuthenticated = !!userData?.data?.user;
+    const isPublicSharedPage = location.pathname.startsWith('/p/');
     const provider = userData?.data?.provider;
 
-    const { data: providerResponse, isLoading: isLoadingProvider, isError: isErrorProvider } = useGetProviderByid(dataConsult?.id);
+    const redirectToLogin = () => {
+        const isPublicProviderRoute = location.pathname.startsWith('/p/');
+        const slugFromPath = isPublicProviderRoute
+            ? location.pathname.replace('/p/', '').split('/')[0]
+            : null;
+
+        const redirectTo = slugFromPath
+            ? `/consult-provider/${slugFromPath}`
+            : `${location.pathname}${location.search || ''}${location.hash || ''}`;
+
+        navigate('/login', {
+            state: {
+                redirectTo,
+            },
+        });
+    };
+
+    const { data: providerByIdResponse, isLoading: isLoadingProviderById, isError: isErrorProviderById } = useGetProviderByid(
+        mode === "consultationCustomers" && !slug ? dataConsult?.id : null
+    );
+    const { data: providerBySlugResponse, isLoading: isLoadingProviderBySlug, isError: isErrorProviderBySlug } = useGetProviderBySlug(
+        mode === "consultationCustomers" && slug ? slug : null
+    );
+    const providerResponse = slug ? providerBySlugResponse : providerByIdResponse;
+    const isLoadingProvider = slug ? isLoadingProviderBySlug : isLoadingProviderById;
+    const isErrorProvider = slug ? isErrorProviderBySlug : isErrorProviderById;
     const providerDetail = providerResponse?.data?.provider;
 
-    const { data: servicesData, isLoading: isLoadingServices, isError: isErrorServices, refetch: refetchService } = useGetServicesByProvider(provider?.id);
+    const providerIdForServices = mode === "consultationCustomers" ? providerDetail?.id : provider?.id;
+    const { data: servicesData, isLoading: isLoadingServices, isError: isErrorServices, refetch: refetchService } = useGetServicesByProvider(providerIdForServices);
 
     const apiCategories = useMemo(() => {
         if (mode === "consultationCustomers") {
@@ -100,6 +135,11 @@ export function ServiceProvider({ mode, dataConsult }) {
      * Handles open contact with data behavior.
      */
     const openContactWithData = (provider, service) => {
+        if (isPublicSharedPage || !isAuthenticated) {
+            redirectToLogin();
+            return;
+        }
+
         setDataContact({
             ...provider,
             selectedService: service // Ici service contient : name, price, description, etc.
@@ -127,6 +167,21 @@ export function ServiceProvider({ mode, dataConsult }) {
 
     const isComponentLoading = mode === "consultationCustomers" ? isLoadingProvider : isLoadingServices;
     const isComponentError = mode === "consultationCustomers" ? isErrorProvider : isErrorServices;
+
+    const handleCopyPublicLink = async () => {
+        try {
+            const providerSlug = providerDetail?.slug || dataConsult?.slug;
+            if (!providerSlug) {
+                toast.error("Lien public indisponible pour ce prestataire.");
+                return;
+            }
+            const publicUrl = `${window.location.origin}/p/${providerSlug}`;
+            await navigator.clipboard.writeText(publicUrl);
+            toast.success("Lien public copié.");
+        } catch (error) {
+            toast.error("Impossible de copier le lien.");
+        }
+    };
 
 
     if (isComponentError) {
@@ -182,7 +237,7 @@ export function ServiceProvider({ mode, dataConsult }) {
                                     </span>
                                 ))}
                             </div>
-                            <div className="flex gap-4 mt-2 items-center">
+                             <div className="flex gap-4 mt-2 items-center">
                                 <Button
                                     variant="gradient"
                                     size="md"
@@ -193,7 +248,13 @@ export function ServiceProvider({ mode, dataConsult }) {
                                 <Button
                                     variant="softRed"
                                     size="md"
-                                    onClick={() => openFeedback(providerDetail)}
+                                    onClick={() => {
+                                        if (isPublicSharedPage || !isAuthenticated) {
+                                            redirectToLogin();
+                                            return;
+                                        }
+                                        openFeedback(providerDetail);
+                                    }}
                                     className={`${customerContact && "bg-gray-300 hover:bg-gray-300 hover:text-white"}`}
                                 >
                                     noter
@@ -207,6 +268,14 @@ export function ServiceProvider({ mode, dataConsult }) {
                                         />
                                     ))}
                                 </div>
+                                <Button
+                                    variant="none"
+                                    size="none"
+                                    onClick={handleCopyPublicLink}
+                                    className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
+                                >
+                                    <Share2 size={16} className="text-[#E8524D]" />
+                                </Button>
                             </div>
                         </div>
                     </div>

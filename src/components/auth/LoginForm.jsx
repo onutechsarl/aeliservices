@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { toast } from "react-toastify";
 import { Input } from '../../ui/Input';
@@ -12,6 +12,8 @@ import { useLogin } from '../../hooks/useAuth';
  */
 export function LoginForm() {
     const navigate = useNavigate()
+    const location = useLocation();
+    const redirectTo = location.state?.redirectTo || "/home";
     const { mutate, isPending, isError, error, isSuccess, data } = useLogin();
     const [formData, setFormData] = useState({
         email: "",
@@ -47,7 +49,7 @@ export function LoginForm() {
             localStorage.setItem('refreshToken', data.data.refreshToken);
             localStorage.setItem('user', JSON.stringify(data.data.user));
             toast.success(data.message);
-            navigate("/home");
+            navigate(redirectTo, { replace: true });
         }
 
         if (isError) {
@@ -61,7 +63,7 @@ export function LoginForm() {
                 });
             }
         }
-    }, [isSuccess, isError, data, error]);
+    }, [isSuccess, isError, data, error, navigate, redirectTo]);
 
     return (
         <AuthCard

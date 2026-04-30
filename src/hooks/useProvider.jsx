@@ -52,6 +52,19 @@ export const useGetProviderByid = (id) => {
         queryKey: ["useGetProviderByid", id],
         queryFn: () => request(`/api/providers/${id}`, "GET"),
         refetchOnWindowFocus: false,
+        enabled: !!id,
+    });
+};
+
+/**
+ * Custom hook that manages get provider by slug.
+ */
+export const useGetProviderBySlug = (slug) => {
+    return useQuery({
+        queryKey: ["useGetProviderBySlug", slug],
+        queryFn: () => request(`/api/providers/by-slug/${slug}`, "GET"),
+        refetchOnWindowFocus: false,
+        enabled: !!slug,
     });
 };
 

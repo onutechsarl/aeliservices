@@ -43,6 +43,7 @@ function App() {
         <Route path="/add-service" element={<AddServiceScreen />} />
         <Route path="/reset-password/:token" element={<ResetPasswordScreen />} />
         <Route path="/callback" element={<PaymentCallbackHandlerScreen />} />
+        <Route path="/p/:slug" element={<ProviderScreen />} />
 
         <Route element={<Base />}>
           <Route path="/home" element={<HomeScreen />} />
@@ -50,6 +51,7 @@ function App() {
           <Route path="/search" element={<SearchScreen />} />
           <Route path="/provider" element={<ProviderScreen />} />
           <Route path="/consult-provider" element={<ProviderScreen />} />
+          <Route path="/consult-provider/:slug" element={<ProviderScreen />} />
           <Route path="/subscription" element={<SubscriptionScreen />} />
         </Route>
       </Routes>

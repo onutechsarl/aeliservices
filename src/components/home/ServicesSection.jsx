@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { toast } from "react-toastify";
 import { useNavigate, useOutletContext } from 'react-router-dom'
-import { ArrowRight, Filter, ShoppingBag, AlertCircle, ChevronRight } from 'lucide-react'
+import { ArrowRight, Filter, ShoppingBag, AlertCircle, ChevronRight, Share2 } from 'lucide-react'
 import { ProviderCard } from '../../ui/ProviderCard';
 import { Button } from '../../ui/Button';
 import { Input } from '../../ui/Input';
@@ -65,6 +65,20 @@ export function ServicesSection() {
         addToFavorites({ providerId });
     };
 
+    const handleCopyPublicLink = async (provider) => {
+        try {
+            if (!provider?.slug) {
+                toast.error("Lien public indisponible pour ce prestataire.");
+                return;
+            }
+            const publicUrl = `${window.location.origin}/p/${provider.slug}`;
+            await navigator.clipboard.writeText(publicUrl);
+            toast.success("Lien public copié.");
+        } catch (error) {
+            toast.error("Impossible de copier le lien.");
+        }
+    };
+
     return (
         <div className="space-y-8">
             <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -119,17 +133,27 @@ export function ServicesSection() {
                                 onContact={openContact}
                                 onFavorite={() => handleFavoriteClick(item.id)}
                                 actions={[
-                                    <Button
-                                        variant="consultAction"
-                                        size="none"
-                                        onClick={() => navigate('/consult-provider', { state: { mode: "consultationCustomers", data: item } })}
-                                        className="font-bold"
-                                    >
-                                        <span className="font-semibold text-[14px]">
-                                            Consulter
-                                        </span>
-                                        <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="consultAction"
+                                            size="none"
+                                            onClick={() => navigate('/consult-provider', { state: { mode: "consultationCustomers", data: item } })}
+                                            className="font-bold"
+                                        >
+                                            <span className="font-semibold text-[14px]">
+                                                Consulter
+                                            </span>
+                                            <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
+                                        </Button>
+                                        <Button
+                                            variant="none"
+                                            size="none"
+                                            onClick={() => handleCopyPublicLink(item)}
+                                            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
+                                        >
+                                            <Share2 size={16} className="text-[#E8524D]" />
+                                        </Button>
+                                    </div>
                                 ]}
                             />
                         ))}

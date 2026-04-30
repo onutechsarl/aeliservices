@@ -14,7 +14,11 @@ import { toast } from 'react-toastify';
  * UI component responsible for rendering review list.
  */
 export function ReviewList({ closeReview, idProvider }) {
-    const { openFeedback, openConfirm, setConfirmConfig, closeModal2 } = useOutletContext();
+    const outletContext = useOutletContext() || {};
+    const openFeedback = outletContext?.openFeedback || (() => { });
+    const openConfirm = outletContext?.openConfirm || (() => { });
+    const setConfirmConfig = outletContext?.setConfirmConfig || (() => { });
+    const closeModal2 = outletContext?.closeModal2 || (() => { });
     const scrollRef = useRef(null)
     const [openMenuId, setOpenMenuId] = useState(null)
     const triggerRef = useRef(null)

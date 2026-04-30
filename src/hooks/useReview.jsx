@@ -9,6 +9,7 @@ export const useGetReviewByProvider = (id) => {
         queryKey: ["useGetReviewByProvider", id],
         queryFn: () => request(`/api/reviews/provider/${id}`, "GET"),
         refetchOnWindowFocus: false,
+        enabled: !!id,
     });
 };
 
@@ -49,4 +50,3 @@ export const useDeleteReview = () => {
         },
     });
 };
-
