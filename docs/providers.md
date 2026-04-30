@@ -148,6 +148,42 @@ Récupère le profil complet d'un prestataire avec ses services, avis récents e
 
 ---
 
+### `GET /by-slug/:slug` - Profil public via lien partageable
+
+**Description :**
+Identique à `GET /:id`, mais résout le prestataire par son **slug** (identifiant URL-friendly généré depuis `businessName`). Pensé pour le partage de lien : un prestataire copie son URL publique (ex. `https://app.aeli.cm/p/eco-prestige`) et l'envoie sur WhatsApp / Instagram / SMS, le destinataire ouvre la page **sans avoir besoin de se connecter ni de créer un compte**.
+
+**Ce qu'il fait :**
+- Renvoie exactement le même payload que `GET /:id` (services, avis, profil complet).
+- Incrémente le compteur de vues à chaque ouverture publique.
+- Applique les mêmes règles de visibilité liées à l'abonnement (whatsapp / photos masqués si abonnement expiré).
+- Cache Redis (5 min).
+
+**Format du slug :**
+- Auto-généré au moment de la création / mise à jour du `businessName`.
+- Lower-case, sans accents ni caractères spéciaux (ex. `"Éco Prestige"` → `eco-prestige`).
+- Garanti unique : en cas de collision, suffixé d'un compteur (`eco-prestige`, `eco-prestige-2`, `eco-prestige-3`, …).
+- Stocké en colonne unique sur la table `providers`.
+
+**Exemple :**
+```
+GET /api/providers/by-slug/eco-prestige
+```
+
+**Réponse 200 :** identique à `GET /:id` (le champ `slug` est aussi exposé dans la réponse).
+
+**Réponse 404 :**
+```json
+{ "success": false, "message": "Prestataire introuvable" }
+```
+
+**Côté front :**
+- Page publique recommandée : `https://<domaine-front>/p/:slug`.
+- Bouton « Copier mon lien » dans l'espace pro qui copie cette URL dans le clipboard.
+- Aucune protection d'auth requise sur la page : elle doit être accessible directement sans guard.
+
+---
+
 ## 📝 2. CANDIDATURE PRESTATAIRE
 
 ### `POST /apply` - Postuler pour devenir prestataire

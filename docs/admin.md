@@ -221,6 +221,46 @@ Trafic API heure par heure pour une date donnée.
 
 ---
 
+### `GET /analytics/daily-active-users?days=30` - Utilisateurs connectés par jour
+
+**Description :**
+Renvoie le nombre d'**utilisateurs distincts ayant ouvert une session avec succès** chaque jour, sur la fenêtre demandée. Permet de tracer la courbe DAU (Daily Active Users) du dashboard admin.
+
+**Ce qu'il fait :**
+- Lit la table `security_logs` filtrée sur `event_type = 'login_success'`.
+- Compte les `user_id` distincts par jour.
+- La fenêtre est paramétrable via le query `days` (1-365, défaut 30). Une valeur hors borne est clampée.
+- Aucun écrit / aucun caching — c'est une simple agrégation lecture seule.
+
+**Paramètres query :**
+| Param | Type | Défaut | Description |
+|-------|------|--------|-------------|
+| `days` | int | 30 | Taille de la fenêtre en jours (1-365). |
+
+**Exemple :**
+```
+GET /api/admin/analytics/daily-active-users?days=14
+```
+
+**Réponse 200 :**
+```json
+{
+  "success": true,
+  "data": {
+    "days": 14,
+    "series": [
+      { "day": "2026-04-17", "count": 124 },
+      { "day": "2026-04-18", "count": 138 },
+      { "day": "2026-04-19", "count": 95 }
+    ]
+  }
+}
+```
+
+> Les jours sans aucune connexion ne renvoient pas d'entrée — c'est au front de remplir avec `count: 0` si tu veux une courbe continue.
+
+---
+
 ## 👥 2. GESTION DES UTILISATEURS
 
 ### `GET /users` - Liste des utilisateurs
