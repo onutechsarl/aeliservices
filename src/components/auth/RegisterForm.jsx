@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Circle, Loader2 } from 'lucide-react';
+import { Circle, Loader2 } from 'lucide-react';
 import { toast } from "react-toastify";
 import { Input } from '../../ui/Input';
 import { Button } from '../../ui/Button';
@@ -188,7 +188,7 @@ export function RegisterForm() {
                     }`}
                 >
                   {critere.met ? (
-                    <CheckCircle2 size={14} className="text-green-500" />
+                    <Circle size={14} className="text-green-500" />
                   ) : (
                     <Circle size={14} className="text-slate-300" />
                   )}
