@@ -44,12 +44,16 @@ export function LoginForm() {
     }
 
     useEffect(() => {
-        if (isSuccess && data?.success) {
+        if (isSuccess && data?.success && !data?.data?.requiresOTP) {
             localStorage.setItem('accessToken', data.data.accessToken);
             localStorage.setItem('refreshToken', data.data.refreshToken);
             localStorage.setItem('user', JSON.stringify(data.data.user));
             toast.success(data.message);
             navigate(redirectTo, { replace: true });
+        }
+
+        if (isSuccess && data?.success && data?.data?.requiresOTP) {
+            toast.error(data.message);
         }
 
         if (isError) {
@@ -151,6 +155,16 @@ export function LoginForm() {
                                         className="text-[#E8524D] font-semibold hover:underline cursor-pointer bg-transparent border-none"
                                     >
                                         S'inscrire
+                                    </button>
+                                </p>
+
+                                <p className="text-sm text-slate-500 mt-4">
+                                    Vous n'avez pas fait l'étape de vérification lors de l'inscription?{' '}
+                                    <button
+                                        onClick={() => navigate('/otp')}
+                                        className="text-[#E8524D] font-semibold hover:underline cursor-pointer bg-transparent border-none"
+                                    >
+                                        Verifier
                                     </button>
                                 </p>
                             </div>
