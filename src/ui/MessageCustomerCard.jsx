@@ -1,5 +1,5 @@
 import React from 'react'
-import { Clock, Trash2 } from 'lucide-react'
+import { Clock, Trash2, CheckCheck } from 'lucide-react'
 
 /**
  * UI component responsible for rendering message card.
@@ -38,9 +38,10 @@ export function MessageCard({
                 </div>
 
                 <span
-                    className={`text-xs font-semibold px-2 py-1 rounded-full ${status === 'pending' ? 'text-yellow-500 bg-yellow-50' : 'text-green-600 bg-green-50'}`}
+                    className={`text-xs font-semibold px-2 py-1 rounded-full ${status === 'pending' ? 'text-gray-500 bg-gray-100' : 'text-green-600 bg-green-100'}`}
                 >
-                    {status === 'pending' ? 'Attente' : 'Contacté'}
+                    <CheckCheck size={14} />
+
                 </span>
             </div>
 

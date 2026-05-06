@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react' // Ajout de useState
 import { useLocation, useNavigate } from 'react-router-dom'
-import { X, ChevronRight, ChevronLeft, Filter as FilterIcon } from 'lucide-react'
+import { X, ChevronRight, ChevronLeft, Filter as FilterIcon, ChevronDown } from 'lucide-react'
 import { Button } from '../../ui/Button';
+import { Alert } from '../../ui/Alert';
 import { useInfoUserConnected } from '../../hooks/useUser';
 import { useLogout } from '../../hooks/useAuth';
 import { useGetCategory } from '../../hooks/useServices';
@@ -318,6 +319,14 @@ export function Sidebar({ isOpenSidebar, showStats, onOpenMessage, onOpenFavorit
               </span>
             </button>
           ))}
+          <a href={"https://wa.me/694909988"} target='_blank' className="mb-4">
+            <Alert
+              variant="serviceclient"
+              title={isCollapsed ? "" : `Service client`}
+              isActif={isCollapsed}
+              isCollapsed message={isCollapsed ? "" : `En cas de sosucis, veuillez contacter le service client en cliquant ici.`}
+            />
+          </a>
         </nav>
 
         { }

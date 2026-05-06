@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from "react-toastify";
-import { Phone, ArrowLeft, Mail, ExternalLink } from 'lucide-react';
+import { Phone, ArrowLeft, Mail, ExternalLink, CheckCheck } from 'lucide-react';
 import { Avatar } from '../../../ui/Avatar';
 import { Alert } from '../../../ui/Alert';
 import { StatusMenu } from '../../global/StatusMenu';
@@ -136,8 +136,8 @@ export function ChatWindow({ chat, onBack }) {
                                 )}
                                 <span className="flex justify-end pt-2">
                                     {msg.fullData.status && (
-                                        <span className="text-[10px] text-gray-400 italic">
-                                            Statut: {msg.fullData.status}
+                                        <span className={`text-[10px] ${msg.fullData.status == "pending" ? "text-gray-500" : "text-green-500"}`}>
+                                            <CheckCheck size={14} />
                                         </span>
                                     )}
                                 </span>

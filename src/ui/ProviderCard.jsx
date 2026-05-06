@@ -29,13 +29,13 @@ export function ProviderCard({
   const isFavorite = checkData?.data?.isFavorite;
 
   return (
-    <div className={`bg-[#f3f3f3]  md:p-2.5 rounded-[24px] w-full shadow-sm group ${className}`}>
-      <div className="bg-white rounded-[20px] overflow-hidden flex flex-row md:flex-col border border-gray-100 relative">
-        <div className="relative w-24 h-40 m-2 shrink-0 md:m-0 md:w-full md:h-60 md:aspect-[1.3/1] overflow-hidden rounded-[16px] md:rounded-none">
+    <div className={`bg-white  md:p-2.5 rounded-[24px] w-full shadow-sm group ${className}`}>
+      <div className="bg-white rounded-[20px] overflow-hidden flex flex-row md:flex-col border border-gray-100 md:border-none relative">
+        <div className="relative w-24 h-42 m-2 shrink-0 md:m-0 md:w-full md:h-60 md:aspect-[1.3/1] overflow-hidden rounded-[16px] md:rounded-xl mdp-2">
           <img
             src={image || `./defaultstructure.jpg`}
             alt={displayTitle}
-            className="w-full h-full  object-cover transition-transform duration-500 group-hover:scale-105"
+            className="w-full !rounded-xl h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
           <div className="block md:block absolute inset-0 bg-gradient-to-t from-black/40 via-black/5 to-transparent" />
           <div className="absolute -bottom-20 -right-20 w-64 h-30 bg-purple-600 rounded-full blur-[100px] opacity-20 z-0"></div>
@@ -60,7 +60,7 @@ export function ProviderCard({
             </div>
           )}
         </div>
-        <div className="flex-1 p-3 md:p-4 flex flex-col justify-between md:gap-3 min-w-0">
+        <div className="flex-1 p-3 md:p-2 md:pt-4 md:py-2 flex flex-col justify-between min-w-0">
           <div className="flex justify-between items-start">
             <div className="truncate pr-2">
               <h3 className="text-[15px] md:text-[16px] font-bold text-gray-900 leading-tight truncate">

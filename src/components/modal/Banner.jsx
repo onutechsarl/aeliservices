@@ -76,7 +76,7 @@ export function Banner() {
                 </div>
                 <button
                     onClick={() => setIsVisible(false)}
-                    className="absolute top-2 right-2 z-30 p-1.5 bg-black/5 hover:bg-black/10 text-gray-800 rounded-full transition-colors"
+                    className="absolute top-2 right-2 z-30 p-1.5 bg-white  opacity-70 shadow-lg hover:bg-white hover:opacity-100 text-gray-800 rounded-full transition-colors"
                 >
                     <X size={16} />
                 </button>
