@@ -8,6 +8,7 @@ import { Pricing } from "../components/Pricing";
 import { MoreThanLogin } from '../components/AppPresentation';
 import { TestimonialWall } from '../components/TestimonialWall';
 import { Banner } from '../components/Banner';
+import { FAQ } from '../components/Faq';
 import { Footer } from '../components/Footer';
 
 
@@ -19,6 +20,7 @@ export function HomeScreen() {
                 <Pricing />
                 <MoreThanLogin />
                 <SocialSidebar />
+                <FAQ />
                 <div className="relative z-10">
                     <TestimonialWall />
                     <Banner />
