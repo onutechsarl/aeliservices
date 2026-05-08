@@ -45,8 +45,8 @@ export function LoginForm() {
 
     useEffect(() => {
         if (isSuccess && data?.success && !data?.data?.requiresOTP) {
-            localStorage.setItem('accessToken', data.data.accessToken);
-            localStorage.setItem('refreshToken', data.data.refreshToken);
+            localStorage.setItem('accessTokenAeliServices', data.data.accessToken);
+            localStorage.setItem('refreshTokenAeliServices', data.data.refreshToken);
             localStorage.setItem('user', JSON.stringify(data.data.user));
             toast.success(data.message);
             navigate(redirectTo, { replace: true });

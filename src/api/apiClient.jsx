@@ -4,14 +4,34 @@ const API_URL = import.meta.env.VITE_API_URL;
  * Handles request behavior.
  */
 export const request = async (endpoint, method = "GET", body = null) => {
-    let accessToken = localStorage.getItem('accessToken');
+    let accessToken = localStorage.getItem('accessTokenAeliServices');
+
+    const publicAuthEndpoints = [
+        "/api/auth/login",
+        "/api/auth/register",
+        "/api/auth/verify-otp",
+        "/api/auth/resend-otp",
+        "/api/auth/forgot-password",
+        "/api/auth/reset-password",
+    ];
+
+    const isPublicAuthEndpoint = publicAuthEndpoints.some((publicEndpoint) =>
+        endpoint.startsWith(publicEndpoint)
+    );
+
+    if (!accessToken && !isPublicAuthEndpoint) {
+        handleLogout();
+        return;
+    }
 
     const options = {
         method,
-        headers: {
-            "Authorization": `Bearer ${accessToken}`,
-        },
+        headers: {},
     };
+
+    if (accessToken) {
+        options.headers["Authorization"] = `Bearer ${accessToken}`;
+    }
 
     if (body) {
         if (body instanceof FormData) {
@@ -28,7 +48,7 @@ export const request = async (endpoint, method = "GET", body = null) => {
     let data = await response.json();
 
     if (!response.ok && data.code === "TOKEN_EXPIRED") {
-        const refreshToken = localStorage.getItem('refreshToken');
+        const refreshToken = localStorage.getItem('refreshTokenAeliServices');
         if (refreshToken) {
             try {
                 const refreshResponse = await fetch(`${API_URL}/api/auth/refresh`, {
@@ -41,7 +61,7 @@ export const request = async (endpoint, method = "GET", body = null) => {
                 const refreshData = await refreshResponse.json();
 
                 if (refreshResponse.ok) {
-                    localStorage.setItem('accessToken', refreshData.accessToken);
+                    localStorage.setItem('accessTokenAeliServices', refreshData.accessToken);
                     options.headers["Authorization"] = `Bearer ${refreshData.accessToken}`;
 
                     response = await fetch(`${API_URL}${endpoint}`, options);

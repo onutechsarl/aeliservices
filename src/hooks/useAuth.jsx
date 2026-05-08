@@ -48,7 +48,7 @@ export const useLogout = () => {
     return useMutation({
         mutationKey: ["useLogout"],
         mutationFn: () => {
-            const refreshToken = localStorage.getItem("refreshToken");
+            const refreshToken = localStorage.getItem("refreshTokenAeliServices");
             const payload = refreshToken ? { refreshToken } : null;
             return request("/api/auth/logout", "POST", payload);
         },

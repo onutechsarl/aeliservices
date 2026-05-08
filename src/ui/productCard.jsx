@@ -23,9 +23,9 @@ export function ProductCard({
   const isFavorite = checkData?.data?.isFavorite;
 
   return (
-    <div className="bg-[#f3f3f3] md:p-2.5 rounded-[24px] w-full h-fit shadow-sm group">
-      <div className="bg-white rounded-[20px] overflow-hidden flex flex-col border border-gray-100 relative">
-        <div className="relative w-full aspect-[1.3/1] overflow-hidden">
+    <div className="bg-[#f3f3f3]  rounded-[24px] w-full h-fit shadow-sm group">
+      <div className="bg-white p-2 rounded-[20px] overflow-hidden flex flex-col border border-gray-100 relative">
+        <div className="relative rounded-xl w-full aspect-[1.3/1] overflow-hidden">
           <img
             src={image || `./defaultstructure.jpg`}
             alt={displayTitle}
@@ -39,7 +39,7 @@ export function ProductCard({
             </div>
           )}
         </div>
-        <div className="p-4 flex flex-col gap-3">
+        <div className="p-4 px-2 flex flex-col gap-3">
           <div className="flex justify-between items-start">
             <div className={`flex flex-col max-w-[100%]`}>
               <h3 className="text-[16px] font-bold text-gray-900 leading-tight truncate">
