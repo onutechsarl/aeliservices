@@ -91,11 +91,11 @@ export function TestimonialWall() {
   const duplicatedTestimonials = [...flatTestimonials, ...flatTestimonials];
 
   return (
-    <section className="py-24 relative overflow-hidden z-100">
+    <section className="py-24 -mt-14 md:-mt-12 relative overflow-hidden z-100">
       <div className="max-w-7xl mx-auto md:px-6">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900">
-            Ils font confiance à AELI Services
+            Ils font confiance à <br/> AELI Services
           </h2>
           <p className="text-gray-500 text-lg">
             Découvrez comment notre plateforme accompagne la réussite des entrepreneures et facilite des collaborations durables.

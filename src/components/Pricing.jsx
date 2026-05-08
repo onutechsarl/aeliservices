@@ -88,7 +88,7 @@ export function Pricing() {
 
     return (
         <section className="pb-24 pt-20 relative overflow-hidden">
-            <div className="max-w-7xl mx-auto px-6 relative z-10">
+            <div className="max-w-7xl mx-auto px-4 md:px-6 relative z-10">
                 <div className="text-center max-w-3xl mx-auto mb-16">
                     <h2 className="text-4xl font-bold mb-6 text-gray-900">Plans AELI Services</h2>
                 </div>
