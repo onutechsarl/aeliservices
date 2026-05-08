@@ -221,6 +221,46 @@ Trafic API heure par heure pour une date donnée.
 
 ---
 
+## 🛡️ Gestion des comptes administrateurs
+
+### `GET /admins` - Lister les administrateurs
+
+Renvoie tous les comptes ayant `role = "admin"` (id, email, prénom/nom, statut). Utilisé par le dashboard pour afficher la liste des admins existants.
+
+### `POST /admins` - Créer un nouvel administrateur
+
+Crée directement un compte admin actif et email-vérifié.
+
+**Body :**
+```json
+{
+  "email": "ops@aeli.cm",
+  "password": "MotDePasseFort2026!",
+  "firstName": "Ops",
+  "lastName": "Aeli",
+  "phone": "+237699000000",
+  "country": "Cameroun",
+  "gender": "prefer_not_to_say"
+}
+```
+
+**Champs obligatoires :** `email`, `password`, `firstName`, `lastName`. Les autres sont optionnels.
+
+**Réponse 201 :** `{ admin: { id, email, firstName, lastName, role, isActive, createdAt } }`
+**Réponse 400 :** email déjà utilisé.
+
+### `PUT /admins/:id/promote` - Promouvoir un utilisateur en admin
+
+Passe le `role` d'un utilisateur existant à `admin`. Ré-active le compte et marque l'email comme vérifié au passage.
+
+### `PUT /admins/:id/demote` - Rétrograder un admin
+
+Passe l'admin ciblé vers `role = "client"`. Garde-fous :
+- impossible de se rétrograder soi-même (`cannotDemoteSelf`)
+- impossible de rétrograder s'il ne reste qu'un seul admin (`cannotDemoteLast`)
+
+---
+
 ### `GET /analytics/daily-active-users?days=30` - Utilisateurs connectés par jour
 
 **Description :**

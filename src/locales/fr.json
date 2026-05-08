@@ -163,7 +163,14 @@
     "applicationDetails": "Détails de la candidature",
     "applicationApproved": "Candidature approuvée. Profil prestataire créé.",
     "applicationRejected": "Candidature rejetée",
-    "rejectionReasonRequired": "Le motif de rejet est obligatoire"
+    "rejectionReasonRequired": "Le motif de rejet est obligatoire",
+    "created": "Administrateur créé",
+    "promoted": "Utilisateur promu administrateur",
+    "demoted": "Administrateur rétrogradé",
+    "alreadyAdmin": "Cet utilisateur est déjà administrateur",
+    "notAdmin": "Cet utilisateur n'est pas administrateur",
+    "cannotDemoteSelf": "Vous ne pouvez pas vous rétrograder vous-même",
+    "cannotDemoteLast": "Impossible de rétrograder le dernier administrateur"
   },
   "validation": {
     "emailRequired": "L'email est requis",
@@ -176,6 +183,7 @@
     "messageLength": "Le message doit contenir entre {min} et {max} caractères",
     "ratingRequired": "La note est requise",
     "emailInUse": "Cet email est déjà utilisé",
+    "requiredFields": "Champs obligatoires manquants",
     "ratingRange": "La note doit être entre 1 et 5",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
     "invalidGender": "Genre invalide. Choisissez: male, female, other, prefer_not_to_say"

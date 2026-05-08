@@ -15,6 +15,10 @@ const {
   deleteUser,
   toggleProviderStatus,
   getAllProvidersAdmin,
+  listAdmins,
+  createAdmin,
+  promoteToAdmin,
+  demoteAdmin,
 } = require("../controllers/adminController");
 const {
   updateUserStatusValidation,
@@ -61,6 +65,12 @@ router.put(
   updateUserStatus,
 );
 router.delete("/users/:id", deleteUserValidation, validate, deleteUser);
+
+// ============ ADMIN ACCOUNTS ============
+router.get("/admins", listAdmins);
+router.post("/admins", createAdmin);
+router.put("/admins/:id/promote", promoteToAdmin);
+router.put("/admins/:id/demote", demoteAdmin);
 
 // ============ PROVIDER APPLICATIONS ============
 router.get("/provider-applications", getApplications);

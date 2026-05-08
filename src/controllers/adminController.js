@@ -1120,6 +1120,140 @@ const getAllProvidersAdmin = asyncHandler(async (req, res) => {
   i18nResponse(req, res, 200, "provider.list", { providers, pagination });
 });
 
+/**
+ * @desc    List admin accounts
+ * @route   GET /api/admin/admins
+ * @access  Private (admin)
+ */
+const listAdmins = asyncHandler(async (req, res) => {
+  const admins = await User.findAll({
+    where: { role: "admin" },
+    attributes: [
+      "id",
+      "email",
+      "firstName",
+      "lastName",
+      "phone",
+      "country",
+      "isActive",
+      "isEmailVerified",
+      "createdAt",
+    ],
+    order: [["createdAt", "ASC"]],
+  });
+
+  i18nResponse(req, res, 200, "common.list", { admins });
+});
+
+/**
+ * @desc    Create a new admin account
+ * @route   POST /api/admin/admins
+ * @access  Private (admin)
+ */
+const createAdmin = asyncHandler(async (req, res) => {
+  const { email, password, firstName, lastName, phone, country, gender } = req.body;
+
+  if (!email || !password || !firstName || !lastName) {
+    throw new AppError(req.t("validation.requiredFields"), 400);
+  }
+
+  const existing = await User.findOne({ where: { email } });
+  if (existing) {
+    throw new AppError(req.t("validation.emailInUse"), 400);
+  }
+
+  const admin = await User.create({
+    email,
+    password, // hashed by the User beforeCreate hook
+    firstName,
+    lastName,
+    phone: phone || null,
+    country: country || "Cameroun",
+    gender: gender || "prefer_not_to_say",
+    role: "admin",
+    isActive: true,
+    isEmailVerified: true,
+  });
+
+  i18nResponse(req, res, 201, "admin.created", {
+    admin: {
+      id: admin.id,
+      email: admin.email,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      role: admin.role,
+      isActive: admin.isActive,
+      createdAt: admin.createdAt,
+    },
+  });
+});
+
+/**
+ * @desc    Promote an existing user to admin
+ * @route   PUT /api/admin/admins/:id/promote
+ * @access  Private (admin)
+ */
+const promoteToAdmin = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const user = await User.findByPk(id);
+  if (!user) {
+    throw new AppError(req.t("user.notFound"), 404);
+  }
+  if (user.role === "admin") {
+    throw new AppError(req.t("admin.alreadyAdmin"), 400);
+  }
+
+  user.role = "admin";
+  user.isActive = true;
+  user.isEmailVerified = true;
+  await user.save({ fields: ["role", "isActive", "isEmailVerified"] });
+
+  i18nResponse(req, res, 200, "admin.promoted", {
+    admin: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+    },
+  });
+});
+
+/**
+ * @desc    Demote an admin back to client
+ * @route   PUT /api/admin/admins/:id/demote
+ * @access  Private (admin)
+ *
+ * Safety:
+ *  - cannot demote yourself
+ *  - cannot demote the last remaining admin
+ */
+const demoteAdmin = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (id === req.user.id) {
+    throw new AppError(req.t("admin.cannotDemoteSelf"), 400);
+  }
+
+  const target = await User.findByPk(id);
+  if (!target) {
+    throw new AppError(req.t("user.notFound"), 404);
+  }
+  if (target.role !== "admin") {
+    throw new AppError(req.t("admin.notAdmin"), 400);
+  }
+
+  const adminCount = await User.count({ where: { role: "admin" } });
+  if (adminCount <= 1) {
+    throw new AppError(req.t("admin.cannotDemoteLast"), 400);
+  }
+
+  target.role = "client";
+  await target.save({ fields: ["role"] });
+
+  i18nResponse(req, res, 200, "admin.demoted", { id: target.id });
+});
+
 module.exports = {
   getStats,
   getPendingProviders,
@@ -1135,4 +1269,8 @@ module.exports = {
   deleteUser,
   toggleProviderStatus,
   getAllProvidersAdmin,
+  listAdmins,
+  createAdmin,
+  promoteToAdmin,
+  demoteAdmin,
 };

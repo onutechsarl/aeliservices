@@ -148,7 +148,14 @@
     "userDeactivated": "Account deactivated",
     "cannotDeactivateSelf": "Cannot deactivate your own account",
     "providersUnderReview": "Providers under review",
-    "documentsReviewed": "Documents reviewed"
+    "documentsReviewed": "Documents reviewed",
+    "created": "Administrator created",
+    "promoted": "User promoted to administrator",
+    "demoted": "Administrator demoted",
+    "alreadyAdmin": "This user is already an administrator",
+    "notAdmin": "This user is not an administrator",
+    "cannotDemoteSelf": "You cannot demote yourself",
+    "cannotDemoteLast": "Cannot demote the last administrator"
   },
   "validation": {
     "emailRequired": "Email is required",
@@ -161,6 +168,7 @@
     "messageLength": "Message must be between {min} and {max} characters",
     "ratingRequired": "Rating is required",
     "emailInUse": "Email is already in use",
+    "requiredFields": "Required fields are missing",
     "ratingRange": "Rating must be between 1 and 5",
     "passwordMismatch": "Passwords do not match",
     "invalidGender": "Invalid gender. Choose: male, female, other, prefer_not_to_say"

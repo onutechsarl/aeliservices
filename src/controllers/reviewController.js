@@ -32,13 +32,14 @@ const createReview = asyncHandler(async (req, res) => {
     throw new AppError(req.t("review.cannotSelfReview"), 400);
   }
 
-  // Check if user has contacted this provider AND the provider has read/replied
-  // (anti-abuse: prevents fake reviews from people who just sent a message)
+  // Anti-abuse: the user must have contacted the provider at least once.
+  // We don't require status=read|replied because a provider who never
+  // opens their inbox on the platform should not block a legitimate review
+  // (the actual exchange typically happens off-platform on WhatsApp).
   const hasContact = await Contact.findOne({
     where: {
       userId: req.user.id,
       providerId,
-      status: ["read", "replied"],
     },
   });
   if (!hasContact) {

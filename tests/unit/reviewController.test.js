@@ -147,8 +147,7 @@ describe('Review Controller', () => {
             expect(Contact.findOne).toHaveBeenCalledWith({
                 where: {
                     userId: 'user-123',
-                    providerId: 'provider-123',
-                    status: ['read', 'replied']
+                    providerId: 'provider-123'
                 }
             });
             expect(Review.findOne).toHaveBeenCalledWith({
