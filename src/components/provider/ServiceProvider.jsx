@@ -210,11 +210,11 @@ export function ServiceProvider({ mode, dataConsult, slug }) {
                             </div>
                             <div className="absolute inset-0 border-t-4 border-purple-500 rounded-full rotate-45" />
                         </div>
-                        <div className='md:max-w-2/4'>
+                        <div className='flex-1'>
                             <h4 className="font-bold text-[25px] text-gray-800">
                                 {providerDetail?.businessName || dataConsult?.name}
                             </h4>
-                            <p className="text-xs text-gray-500 mt-1 ">
+                            <p className="text-xs text-gray-500 mt-1 text-justify ">
                                 {providerDetail?.description || "Franchir la porte de notre institut, c'est s'offrir une parenthèse enchantée..."}
                             </p>
                             <p className="flex gap-2 items-center text-xs text-gray-500 mt-1 mt-4 mb-4">
