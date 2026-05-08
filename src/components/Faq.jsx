@@ -98,7 +98,7 @@ function AccordionItem({ item, isOpen, onClick }) {
 }
 
 export function FAQ() {
-  const [openId, setOpenId] = useState(1)
+  const [openId, setOpenId] = useState(0)
 
   return (
     <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
