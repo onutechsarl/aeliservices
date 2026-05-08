@@ -282,10 +282,11 @@ Récupère la liste paginée des utilisateurs avec filtres. **Les administrateur
 | `limit` | int | 20 | Éléments par page (max 100) |
 | `role` | string | - | `client`, `provider` (admins exclus par défaut) |
 | `search` | string | - | Recherche nom, prénom, email ou **nom d'entreprise** |
+| `status` | string | - | `active` ou `inactive` — filtre sur `isActive`. Toute autre valeur est ignorée (= pas de filtre) |
 
 **Exemple :**
 ```
-GET /api/admin/users?page=1&limit=10&search=marie
+GET /api/admin/users?page=1&limit=10&search=marie&status=active
 ```
 
 ---

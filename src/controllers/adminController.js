@@ -614,12 +614,20 @@ const updateReviewVisibility = asyncHandler(async (req, res) => {
  * @access  Private (admin)
  */
 const getAllUsers = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, role, search } = req.query;
+  const { page = 1, limit = 20, role, search, status } = req.query;
   const { limit: queryLimit, offset } = getPaginationParams(page, limit);
 
   const where = {};
   // Filter by role if specified, otherwise exclude admins
   where.role = role ? role : { [Op.ne]: 'admin' };
+
+  // Filter by isActive: status=active|inactive (anything else is ignored)
+  if (status === 'active') {
+    where.isActive = true;
+  } else if (status === 'inactive') {
+    where.isActive = false;
+  }
+
   if (search) {
     where[Op.or] = [
       { firstName: { [Op.iLike]: `%${search}%` } },
