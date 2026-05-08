@@ -319,12 +319,17 @@ export function Sidebar({ isOpenSidebar, showStats, onOpenMessage, onOpenFavorit
               </span>
             </button>
           ))}
-          <a href={"https://wa.me/694909988"} target='_blank' className="mb-4">
+          <a
+            href="https://wa.me/237683384169"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-4"
+          >
             <Alert
               variant="serviceclient"
-              title={isCollapsed ? "" : `Service client`}
+              title={isCollapsed ? "" : `Support client`}
               isActif={isCollapsed}
-              isCollapsed message={isCollapsed ? "" : `En cas de sosucis, veuillez contacter le service client en cliquant ici.`}
+              isCollapsed message={isCollapsed ? "" : `En cas de sosucis, veuillez contacter notre équipe en cliquant ici.`}
             />
           </a>
         </nav>
