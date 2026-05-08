@@ -14,8 +14,8 @@ export function ProviderScreen() {
     const outletContext = useOutletContext() || {};
     const providerShowStats = outletContext?.providerShowStats || false;
     const setProviderShowStats = outletContext?.setProviderShowStats || (() => { });
-
     const mode = slug ? "consultationCustomers" : (location.state?.mode || "defaultMode");
+    const [modelinkslug, setModelinkslug] = useState(false);
     const data = location.state?.data || [];
     const [showStats, setShowStats] = useState(false)
 
@@ -34,8 +34,8 @@ export function ProviderScreen() {
     return (
         <main className="flex-1 flex flex-col xl:flex-row h-screen md:overflow-hidden relative">
             <div className="flex-1 h-full md:overflow-y-auto py-4 md:p-2 md:pr-4 no-scrollbar">
-                <div className="mx-auto pb-4 md:pb-0 px-4 md:px-0">
-                    <ServiceProvider mode={mode} dataConsult={data} slug={slug} />
+                <div className={`mx-auto ${modelinkslug ? "pb-0" : "pb-4"} md:pb-0 px-4 md:px-0`}>
+                    <ServiceProvider mode={mode} dataConsult={data} slug={slug} setModelinkslug={setModelinkslug} />
                 </div>
             </div>
             {showStats && (

@@ -8,6 +8,8 @@ import { ActionMenu } from '../global/ActionMenu';
 import { NotFound } from '../global/Notfound';
 import { Pagination } from '../global/Pagination';
 import { ReviewList } from './ReviewList';
+import { ContactCustomer } from '../modal/ContactCustomer';
+import { FeedbackCard } from '../modal/FeedbackCard';
 import { useInfoUserConnected } from '../../hooks/useUser';
 import { useGetServicesByProvider, useDeleteServices } from '../../hooks/useServices';
 import { useGetProviderByid, useGetProviderBySlug } from '../../hooks/useProvider';
@@ -16,13 +18,14 @@ import { Loading } from '../global/Loading';
 /**
  * UI component responsible for rendering service provider.
  */
-export function ServiceProvider({ mode, dataConsult, slug }) {
+export function ServiceProvider({ mode, dataConsult, slug, setModelinkslug }) {
     const navigate = useNavigate();
     const location = useLocation();
     const [openMenuId, setOpenMenuId] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const triggerRef = useRef(null);
     const outletContext = useOutletContext() || {};
+    const hasOutletModalHandlers = !!outletContext?.openContact && !!outletContext?.openFeedback;
     const openContact = outletContext?.openContact || (() => { });
     const openFeedback = outletContext?.openFeedback || (() => { });
     const openConfirm = outletContext?.openConfirm || (() => { });
@@ -31,11 +34,41 @@ export function ServiceProvider({ mode, dataConsult, slug }) {
     const setDataContact = outletContext?.setDataContact || (() => { });
     const [rating, setRating] = useState(5);
     const [customerContact, SetcustomerContact] = useState(false);
+    const [localContactData, setLocalContactData] = useState(null);
+    const [isLocalContactOpen, setIsLocalContactOpen] = useState(false);
+    const [localProviderToRate, setLocalProviderToRate] = useState(null);
+    const [isLocalFeedbackOpen, setIsLocalFeedbackOpen] = useState(false);
 
     const { data: userData } = useInfoUserConnected();
     const isAuthenticated = !!userData?.data?.user;
     const isPublicSharedPage = location.pathname.startsWith('/p/');
     const provider = userData?.data?.provider;
+
+    const isAccessTokenValid = () => {
+        const token = localStorage.getItem('accessTokenAeliServices');
+        if (!token) return false;
+
+        try {
+            const payloadBase64 = token.split('.')[1];
+            if (!payloadBase64) return false;
+
+            const payloadJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+            const payload = JSON.parse(payloadJson);
+
+            if (!payload?.exp) return false;
+
+            const nowInSeconds = Math.floor(Date.now() / 1000);
+            return payload.exp > nowInSeconds;
+        } catch (error) {
+            return false;
+        }
+    };
+
+    useEffect(() => {
+        if (typeof setModelinkslug === 'function') {
+            setModelinkslug(isPublicSharedPage);
+        }
+    }, [isPublicSharedPage, setModelinkslug]);
 
     const redirectToLogin = () => {
         const isPublicProviderRoute = location.pathname.startsWith('/p/');
@@ -135,16 +168,24 @@ export function ServiceProvider({ mode, dataConsult, slug }) {
      * Handles open contact with data behavior.
      */
     const openContactWithData = (provider, service) => {
-        if (isPublicSharedPage || !isAuthenticated) {
+        if (!isAccessTokenValid() && (isPublicSharedPage || !isAuthenticated)) {
             redirectToLogin();
             return;
         }
 
-        setDataContact({
+        const payload = {
             ...provider,
-            selectedService: service // Ici service contient : name, price, description, etc.
-        });
-        openContact();
+            selectedService: service
+        };
+
+        if (hasOutletModalHandlers) {
+            setDataContact(payload);
+            openContact();
+            return;
+        }
+
+        setLocalContactData(payload);
+        setIsLocalContactOpen(true);
     }
 
     useEffect(() => {
@@ -249,10 +290,17 @@ export function ServiceProvider({ mode, dataConsult, slug }) {
                                     variant="softRed"
                                     size="md"
                                     onClick={() => {
-                                        if (isPublicSharedPage || !isAuthenticated) {
+                                        if (!isAccessTokenValid() && (isPublicSharedPage || !isAuthenticated)) {
                                             redirectToLogin();
                                             return;
                                         }
+
+                                        if (!hasOutletModalHandlers) {
+                                            setLocalProviderToRate(providerDetail);
+                                            setIsLocalFeedbackOpen(true);
+                                            return;
+                                        }
+
                                         openFeedback(providerDetail);
                                     }}
                                     className={`${customerContact && "bg-gray-300 hover:bg-gray-300 hover:text-white"}`}
@@ -401,6 +449,20 @@ export function ServiceProvider({ mode, dataConsult, slug }) {
                     onPageChange={setCurrentPage}
                 />
             }
+
+            {isLocalContactOpen && (
+                <ContactCustomer
+                    closeContact={() => setIsLocalContactOpen(false)}
+                    dataContact={localContactData}
+                />
+            )}
+
+            {isLocalFeedbackOpen && (
+                <FeedbackCard
+                    closeFeedback={() => setIsLocalFeedbackOpen(false)}
+                    providerData={localProviderToRate}
+                />
+            )}
         </>
     )
 }

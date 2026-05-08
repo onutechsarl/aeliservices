@@ -8,7 +8,6 @@ import { ContactCustomer } from '../components/modal/ContactCustomer';
 import { FeedbackCard } from '../components/modal/FeedbackCard';
 import { FavoriteList } from '../components/modal/FavoriteList';
 import { ManageDocument } from '../components/modal/ManageDocument';
-
 import { Confirmation } from '../components/modal/Confirmation';
 import { ProviderMessaging } from '../components/modal/ProviderMessaging/ProviderMessaging';
 import { Banner } from '../components/modal/Banner';
