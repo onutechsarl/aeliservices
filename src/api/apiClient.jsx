@@ -1,5 +1,10 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
+const isPublicConsultationRoute = () => {
+    const pathname = window.location.pathname || "";
+    return pathname.startsWith("/consult-provider/") || pathname.startsWith("/p/");
+};
+
 /**
  * Handles request behavior.
  */
@@ -12,14 +17,14 @@ export const request = async (endpoint, method = "GET", body = null) => {
         "/api/auth/verify-otp",
         "/api/auth/resend-otp",
         "/api/auth/forgot-password",
-        "/api/auth/reset-password",
+        "/api/auth/reset-password"
     ];
 
     const isPublicAuthEndpoint = publicAuthEndpoints.some((publicEndpoint) =>
         endpoint.startsWith(publicEndpoint)
     );
 
-    if (!accessToken && !isPublicAuthEndpoint) {
+    if (!accessToken && !isPublicAuthEndpoint && !isPublicConsultationRoute()) {
         handleLogout();
         return;
     }
@@ -67,13 +72,19 @@ export const request = async (endpoint, method = "GET", body = null) => {
                     response = await fetch(`${API_URL}${endpoint}`, options);
                     data = await response.json();
                 } else {
-                    handleLogout();
+                    if (!isPublicConsultationRoute()) {
+                        handleLogout();
+                    }
                 }
             } catch (err) {
-                handleLogout();
+                if (!isPublicConsultationRoute()) {
+                    handleLogout();
+                }
             }
         } else {
-            handleLogout();
+            if (!isPublicConsultationRoute()) {
+                handleLogout();
+            }
         }
     }
 
