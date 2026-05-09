@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   Users,
   AlertCircle,
+  Copy,
 } from "lucide-react";
 import { ActionMenu } from "../global/ActionMenu";
 import { Table } from "../../ui/Table";
@@ -77,6 +78,18 @@ export const UserTable = ({
    */
   const handleExport = () => {
     mutateExport();
+  };
+
+  /**
+   * Copie l'ID utilisateur dans le presse-papier.
+   */
+  const handleCopyUserId = async (id) => {
+    try {
+      await navigator.clipboard.writeText(id || "");
+      toast.success("ID copié dans le presse-papier");
+    } catch {
+      toast.error("Impossible de copier l'ID");
+    }
   };
 
   useEffect(() => {
@@ -199,9 +212,15 @@ export const UserTable = ({
                     <span className="font-semibold text-slate-900 leading-none truncate">
                       {user.firstName} {user.lastName}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono mt-1 italic">
-                      ID: {user.id.slice(0, 8)}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyUserId(user.id)}
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] text-slate-400 font-mono italic hover:text-slate-600 transition-colors"
+                      title="Copier l'ID"
+                    >
+                      <span>ID: {user.id.slice(0, 8)}</span>
+                      <Copy size={11} />
+                    </button>
                   </div>
                 </div>
               </td>
@@ -209,10 +228,10 @@ export const UserTable = ({
               <td className="px-6 py-4">
                 <span
                   className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${user.role === "admin"
-                      ? "bg-purple-100 text-purple-700"
-                      : user.role === "provider"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-slate-100 text-slate-600"
+                    ? "bg-purple-100 text-purple-700"
+                    : user.role === "provider"
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-slate-100 text-slate-600"
                     }`}
                 >
                   {user.role}
@@ -222,10 +241,10 @@ export const UserTable = ({
               <td className="px-6 py-4 text-xs capitalize text-slate-600">
                 <div
                   className={`text-xs capitalize px-2 py-1 rounded-full w-fit truncate ${user.gender === "male"
-                      ? "bg-blue-50 text-blue-600"
-                      : user.gender === "female"
-                        ? "bg-pink-50 text-pink-600"
-                        : "bg-slate-50 text-slate-400"
+                    ? "bg-blue-50 text-blue-600"
+                    : user.gender === "female"
+                      ? "bg-pink-50 text-pink-600"
+                      : "bg-slate-50 text-slate-400"
                     }`}
                 >
                   {user.gender || "Non défini"}

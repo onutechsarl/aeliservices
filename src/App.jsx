@@ -14,6 +14,7 @@ import { ForgotPasswordScreen } from "./screens/ForgotPasswordScreen";
 import { ResetPasswordScreen } from "./screens/ResetPasswordScreen";
 import { InstallBanner } from "./components/PWA/InstallBanner";
 import { DocumentationScreen } from "./screens/DocumentationScreen";
+import { AdminScreen } from "./screens/AdminScreen";
 
 function App() {
   useEffect(() => {
@@ -42,6 +43,7 @@ function App() {
           <Route path="/security" element={<SecurityScreen />} />
           <Route path="/users" element={<Users />} />
           <Route path="/banners" element={<BannerScreen />} />
+          {/* <Route path="/admins" element={<AdminScreen />} /> */}
           <Route path="/documentation" element={<DocumentationScreen />} />
         </Route>
       </Routes>

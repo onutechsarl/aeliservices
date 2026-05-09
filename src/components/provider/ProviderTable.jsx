@@ -7,9 +7,7 @@ import {
   FileText,
   MoreVertical,
   Users,
-  Phone,
-  MessageSquare,
-  ShieldCheck,
+  Copy,
   Briefcase,
   AlertCircle,
 } from "lucide-react";
@@ -139,6 +137,18 @@ export const ProviderTable = ({
     refetchPending,
   ]);
 
+  /**
+     * Copie l'ID utilisateur dans le presse-papier.
+     */
+  const handleCopyUserId = async (id) => {
+    try {
+      await navigator.clipboard.writeText(id || "");
+      toast.success("ID copié dans le presse-papier");
+    } catch {
+      toast.error("Impossible de copier l'ID");
+    }
+  };
+
   if (isLoading) return <Loader variant="centered" message="Chargement..." />;
 
   return (
@@ -196,15 +206,26 @@ export const ProviderTable = ({
                       <Briefcase size={10} className="text-red-500" />
                     </div>
                   </div>
-
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-semibold text-slate-900 leading-none truncate">
-                      {app.businessName}
-                    </span>
-                    <span className="text-[10px] text-slate-400 mt-1 truncate">
-                      {app.firstName} {app.lastName}
-                    </span>
+                  <div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-semibold text-slate-900 leading-none truncate">
+                        {app.businessName}
+                      </span>
+                      <span className="text-[10px] text-slate-400 mt-1 truncate">
+                        {app.firstName} {app.lastName}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyUserId(app.id)}
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] text-slate-400 font-mono italic hover:text-slate-600 transition-colors"
+                      title="Copier l'ID"
+                    >
+                      <span>ID: {app.id.slice(0, 8)}</span>
+                      <Copy size={11} />
+                    </button>
                   </div>
+
                 </div>
               </td>
 

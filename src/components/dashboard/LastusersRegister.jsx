@@ -1,12 +1,6 @@
 import React from "react";
-import {
-  MapPin,
-  User,
-  ShieldCheck,
-  Briefcase,
-  FileText,
-  AlertCircle,
-} from "lucide-react";
+import { toast } from "react-toastify";
+import { MapPin, User, ShieldCheck, Briefcase, FileText, AlertCircle, Copy } from "lucide-react";
 import { Card } from "../../ui/Card";
 import { Table } from "../../ui/Table";
 import { Badge } from "../../ui/Badge";
@@ -41,6 +35,16 @@ export const LastusersRegister = () => {
     "Dernière Connexion",
     "Status",
   ];
+
+
+  const handleCopyUserId = async (id) => {
+    try {
+      await navigator.clipboard.writeText(id || "");
+      toast.success("ID copié dans le presse-papier");
+    } catch {
+      toast.error("Impossible de copier l'ID");
+    }
+  };
 
   return (
     <div className="f mb-2">
@@ -80,9 +84,15 @@ export const LastusersRegister = () => {
                         <span className="font-semibold text-slate-900 leading-none truncate">
                           {item.firstName} {item.lastName}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono mt-1 italic">
-                          ID: {item.id?.slice(0, 8)}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyUserId(item.id)}
+                          className="mt-1 inline-flex items-center gap-1 text-[10px] text-slate-400 font-mono italic hover:text-slate-600 transition-colors"
+                          title="Copier l'ID"
+                        >
+                          <span>ID: {item.id.slice(0, 8)}</span>
+                          <Copy size={11} />
+                        </button>
                       </div>
                     </div>
                   </td>
@@ -196,9 +206,15 @@ export const LastusersRegister = () => {
                             {item.firstName || ""} {item.lastName || ""}
                           </span>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-mono mt-1 italic">
-                          ID: {item.id?.slice(0, 8)}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyUserId(item.id)}
+                          className="mt-1 inline-flex items-center gap-1 text-[10px] text-slate-400 font-mono italic hover:text-slate-600 transition-colors"
+                          title="Copier l'ID"
+                        >
+                          <span>ID: {item.id.slice(0, 8)}</span>
+                          <Copy size={11} />
+                        </button>
                       </div>
 
                     </div>

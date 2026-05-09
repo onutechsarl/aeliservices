@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Image,
+  UserCog,
 } from "lucide-react";
 
 /**
@@ -31,6 +32,7 @@ export function Sidebar({ isOpen, onClose }) {
     { icon: UserCircle, label: "Utilisateurs", path: "/users" },
     { icon: ShieldCheck, label: "Moderation", path: "/moderation" },
     { icon: Image, label: "Bannières", path: "/banners" },
+    // { icon: UserCog, label: "Admins", path: "/admins" },
     { icon: Lock, label: "Securite", path: "security" },
   ];
 
