@@ -18,16 +18,17 @@ export const ProviderListItem = ({ setSelectedProvider }) => {
   const [selectedId, setSelectedId] = useState(null);
   const ITEMS_PER_PAGE = 5;
 
-  // 1. Appel du hook avec la page courante et les filtres
+  // Appel du hook avec la page courante et les filtres
   const {
     data: apiResponse,
     isLoading,
     isError,
-  } = useGetProviderList(currentPage, ITEMS_PER_PAGE, {
+  } = useGetProviderList(currentPage, {
+    limit: String(ITEMS_PER_PAGE),
     search: filters?.search,
   });
 
-  // 2. Extraction des données et de la pagination serveur
+  // Extraction des données et de la pagination serveur
   const providers = apiResponse?.data?.providers || [];
   const pagination = apiResponse?.data?.pagination;
   const totalPages = pagination?.totalPages || 1;

@@ -13,29 +13,26 @@ export function Users() {
   const [actifTabs, setActifTabs] = useState("Tout");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // On passe la currentPage au hook
-  const { data: apiResponse, isLoading, isError, refetch } = useGetUsers(currentPage);
+  // On passe maintenant la page ET le statut (le filtre) au hook
+  const { data: apiResponse, isLoading, isError, refetch } = useGetUsers(currentPage, actifTabs);
 
-  // Les données sont maintenant déjà paginées par le serveur
   const users = apiResponse?.data?.users || [];
   const pagination = apiResponse?.data?.pagination;
-
-  // On utilise les valeurs fournies par l'API au lieu de les calculer
   const totalPages = pagination?.totalPages || 1;
 
   const handleTabChange = (tab) => {
     setActifTabs(tab);
-    setCurrentPage(1); // Retour à la page 1 lors du changement de filtre
+    setCurrentPage(1); // Très important : on reset la page à 1 quand on change de filtre
   };
 
   return (
     <>
       <div className="mb-6 flex flex-wrap gap-2">
-        <TabButton TABS={TABS} setActifTabs={handleTabChange} />
+        {/* Vérifiez que TabButton utilise bien la prop actifTabs pour le style visuel */}
+        <TabButton TABS={TABS} actifTabs={actifTabs} setActifTabs={handleTabChange} />
       </div>
 
       <UserTable
-        // On passe directement la liste reçue (elle est déjà la "bonne" page)
         users={users}
         isLoading={isLoading}
         refetch={refetch}
