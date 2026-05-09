@@ -99,12 +99,26 @@ const protect = async (req, res, next) => {
 };
 
 /**
- * Middleware to restrict access to certain roles
+ * Middleware to restrict access to certain roles.
+ *
+ * Admins implicitly satisfy any role check: a user with role="admin" passes
+ * restrictTo("provider"), restrictTo("client"), etc. This lets an admin who
+ * also runs their own Provider profile use provider-only routes without
+ * having to switch role.
+ *
  * @param  {...string} roles - Allowed roles
  */
 const restrictTo = (...roles) => {
     return (req, res, next) => {
-        if (!req.user || !roles.includes(req.user.role)) {
+        if (!req.user) {
+            return res.status(403).json({
+                success: false,
+                message: 'Vous n\'avez pas la permission d\'effectuer cette action',
+                code: 'FORBIDDEN'
+            });
+        }
+        const allowed = roles.includes(req.user.role) || req.user.role === 'admin';
+        if (!allowed) {
             return res.status(403).json({
                 success: false,
                 message: 'Vous n\'avez pas la permission d\'effectuer cette action',

@@ -208,6 +208,25 @@ describe('Auth Middleware', () => {
                 code: 'FORBIDDEN'
             });
         });
+
+        it('should let admin pass a provider-only restriction', () => {
+            mockReq.user = { role: 'admin' };
+
+            const middleware = restrictTo('provider');
+            middleware(mockReq, mockRes, mockNext);
+
+            expect(mockNext).toHaveBeenCalled();
+            expect(mockRes.status).not.toHaveBeenCalled();
+        });
+
+        it('should let admin pass a client-only restriction', () => {
+            mockReq.user = { role: 'admin' };
+
+            const middleware = restrictTo('client');
+            middleware(mockReq, mockRes, mockNext);
+
+            expect(mockNext).toHaveBeenCalled();
+        });
     });
 
     describe('optionalAuth', () => {
