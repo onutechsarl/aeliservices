@@ -2,12 +2,12 @@ import React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
- * Composant de Pagination utilisant la logique de calcul "par blocs"
+ * Pagination avec un affichage réduit (3 éléments visibles aux extrémités)
  */
 export function Pagination({ currentPage = 1, totalPages = 1, onPageChange }) {
-  // On utilise la logique exacte de ta première version pour calculer les items
   const pages = React.useMemo(() => {
-    if (totalPages <= 2) {
+    // Si on a peu de pages, on affiche tout sans ellipses
+    if (totalPages <= 5) {
       return Array.from({ length: totalPages }, (_, i) => ({
         type: "page",
         value: i + 1,
@@ -15,23 +15,22 @@ export function Pagination({ currentPage = 1, totalPages = 1, onPageChange }) {
     }
 
     const items = [];
-    // Toujours la première page
-    items.push({ type: "page", value: 1 });
+    items.push({ type: "page", value: 1 }); // Toujours la page 1
 
-    if (currentPage <= 4) {
-      // Bloc de début
-      for (let page = 2; page <= 4; page += 1) {
+    if (currentPage <= 3) {
+      // Bloc de début : [1, 2, 3, ..., totalPages]
+      for (let page = 2; page <= 3; page += 1) {
         items.push({ type: "page", value: page });
       }
       items.push({ type: "ellipsis", value: "end" });
-    } else if (currentPage >= totalPages - 3) {
-      // Bloc de fin
+    } else if (currentPage >= totalPages - 2) {
+      // Bloc de fin : [1, ..., totalPages-2, totalPages-1, totalPages]
       items.push({ type: "ellipsis", value: "start" });
-      for (let page = totalPages - 3; page <= totalPages - 1; page += 1) {
+      for (let page = totalPages - 2; page <= totalPages - 1; page += 1) {
         items.push({ type: "page", value: page });
       }
     } else {
-      // Bloc du milieu (autour de la page courante)
+      // Bloc du milieu : [1, ..., current-1, current, current+1, ..., totalPages]
       items.push({ type: "ellipsis", value: "start" });
       for (let page = currentPage - 1; page <= currentPage + 1; page += 1) {
         items.push({ type: "page", value: page });
@@ -39,8 +38,7 @@ export function Pagination({ currentPage = 1, totalPages = 1, onPageChange }) {
       items.push({ type: "ellipsis", value: "end" });
     }
 
-    // Toujours la dernière page
-    items.push({ type: "page", value: totalPages });
+    items.push({ type: "page", value: totalPages }); // Toujours la dernière page
 
     return items;
   }, [currentPage, totalPages]);
@@ -49,7 +47,6 @@ export function Pagination({ currentPage = 1, totalPages = 1, onPageChange }) {
 
   return (
     <div className="flex items-center justify-center gap-2 py-8">
-      {/* Bouton Précédent */}
       <button
         type="button"
         onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
@@ -59,7 +56,6 @@ export function Pagination({ currentPage = 1, totalPages = 1, onPageChange }) {
         <ChevronLeft className="h-5 w-5" />
       </button>
 
-      {/* Rendu des items calculés */}
       {pages.map((item, index) =>
         item.type === "ellipsis" ? (
           <span
@@ -75,7 +71,7 @@ export function Pagination({ currentPage = 1, totalPages = 1, onPageChange }) {
             onClick={() => onPageChange(item.value)}
             className={`flex h-10 w-10 items-center justify-center rounded-full font-medium transition-all ${
               currentPage === item.value
-                ? "bg-[#E8524D] text-white shadow-lg shadow-red-200 scale-105"
+                ? "bg-[#E8524D] text-white shadow-lg shadow-red-200"
                 : "bg-transparent text-gray-500 hover:bg-gray-100"
             }`}
           >
@@ -84,7 +80,6 @@ export function Pagination({ currentPage = 1, totalPages = 1, onPageChange }) {
         )
       )}
 
-      {/* Bouton Suivant */}
       <button
         type="button"
         onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
