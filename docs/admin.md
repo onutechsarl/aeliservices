@@ -255,9 +255,15 @@ Passe le `role` d'un utilisateur existant à `admin`. Ré-active le compte et ma
 
 ### `PUT /admins/:id/demote` - Rétrograder un admin
 
-Passe l'admin ciblé vers `role = "client"`. Garde-fous :
+Rétrograde l'admin ciblé vers son rôle d'origine. Le rôle restauré est déterminé automatiquement à partir des données :
+- s'il existe encore un enregistrement `Provider` lié au user → rétrograde vers `provider`
+- sinon → rétrograde vers `client`
+
+Garde-fous :
 - impossible de se rétrograder soi-même (`cannotDemoteSelf`)
 - impossible de rétrograder s'il ne reste qu'un seul admin (`cannotDemoteLast`)
+
+**Réponse 200 :** `{ id: <user-id>, role: "provider" | "client" }` — le rôle réellement appliqué.
 
 ---
 

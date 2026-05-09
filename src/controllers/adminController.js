@@ -1220,13 +1220,16 @@ const promoteToAdmin = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Demote an admin back to client
+ * @desc    Demote an admin back to their original role
  * @route   PUT /api/admin/admins/:id/demote
  * @access  Private (admin)
  *
  * Safety:
  *  - cannot demote yourself
  *  - cannot demote the last remaining admin
+ *
+ * Restored role is inferred from the data: if the target user still has a
+ * Provider record attached, they go back to "provider". Otherwise, "client".
  */
 const demoteAdmin = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -1248,10 +1251,17 @@ const demoteAdmin = asyncHandler(async (req, res) => {
     throw new AppError(req.t("admin.cannotDemoteLast"), 400);
   }
 
-  target.role = "client";
+  const linkedProvider = await Provider.findOne({
+    where: { userId: target.id },
+    attributes: ["id"],
+  });
+  target.role = linkedProvider ? "provider" : "client";
   await target.save({ fields: ["role"] });
 
-  i18nResponse(req, res, 200, "admin.demoted", { id: target.id });
+  i18nResponse(req, res, 200, "admin.demoted", {
+    id: target.id,
+    role: target.role,
+  });
 });
 
 module.exports = {
