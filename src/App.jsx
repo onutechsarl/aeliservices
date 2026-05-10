@@ -43,7 +43,7 @@ function App() {
           <Route path="/security" element={<SecurityScreen />} />
           <Route path="/users" element={<Users />} />
           <Route path="/banners" element={<BannerScreen />} />
-          {/* <Route path="/admins" element={<AdminScreen />} /> */}
+          <Route path="/admins" element={<AdminScreen />} />
           <Route path="/documentation" element={<DocumentationScreen />} />
         </Route>
       </Routes>

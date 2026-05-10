@@ -26,13 +26,13 @@ export function Sidebar({ isOpen, onClose }) {
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboards", path: "/dashboard" },
+    { icon: UserCircle, label: "Utilisateurs", path: "/users" },
     { icon: Users, label: "Prestataire", path: "/provider" },
     { icon: CreditCard, label: "Paiements", path: "/subscriptions" },
-    { icon: TrendingUp, label: "Boost", path: "/feature" },
-    { icon: UserCircle, label: "Utilisateurs", path: "/users" },
-    { icon: ShieldCheck, label: "Moderation", path: "/moderation" },
     { icon: Image, label: "Bannières", path: "/banners" },
-    // { icon: UserCog, label: "Admins", path: "/admins" },
+    { icon: TrendingUp, label: "Boost", path: "/feature" },
+    { icon: ShieldCheck, label: "Moderation", path: "/moderation" },
+    { icon: UserCog, label: "Admins", path: "/admins" },
     { icon: Lock, label: "Securite", path: "security" },
   ];
 
@@ -138,7 +138,7 @@ export function Sidebar({ isOpen, onClose }) {
                 Système d'aide actif 24/7
               </p>
               <Button
-                onClick={() => {onClose(); navigate("documentation")}}
+                onClick={() => { onClose(); navigate("documentation") }}
                 variant="primary">
                 <span className="relative z-10 ">
                   Doc{!isCollapsed && "umentation"}{" "}
