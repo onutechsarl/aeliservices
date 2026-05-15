@@ -52,7 +52,12 @@ export const request = async (endpoint, method = "GET", body = null) => {
     let response = await fetch(`${API_URL}${endpoint}`, options);
     let data = await response.json();
 
-    if (!response.ok && data.code === "TOKEN_EXPIRED") {
+    const isTokenExpiredError =
+        data?.code === "TOKEN_EXPIRED" ||
+        data?.code === "SESSION_EXPIRED"
+    // response.status === 401;
+
+    if (!response.ok && isTokenExpiredError) {
         const refreshToken = localStorage.getItem('refreshTokenAeliServices');
         if (refreshToken) {
             try {
