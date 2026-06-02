@@ -109,7 +109,7 @@ export function ChatWindow({ chat, onBack }) {
                     message="Vous avez des messages en attente. Souscrivez à un plan Premium pour débloquer l'accès aux coordonnées de vos clients et lire l'intégralité de leurs messages."
                 />
             )}
-            <div className="flex-1 overflow-y-auto py-4 md:p-4 md:p-6 space-y-8 no-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto py-4 md:p-4 md:p-6 space-y-8 no-scrollbar">
                 {[...chat.messages].reverse().map((msg) => (
                     <div key={msg.id} className="flex items-start max-w-full">
                         <Avatar src={chat.avatar || `./no-user.jpg`} size="sm" />

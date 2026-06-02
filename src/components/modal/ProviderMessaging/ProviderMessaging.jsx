@@ -78,7 +78,7 @@ export function ProviderMessaging({ closeMessaging }) {
                     className="h-[450px] border-none"
                 />
             ) : (
-                <div className="flex overflow-hidden font-sans h-[500px]">
+                <div className="flex overflow-hidden font-sans h-full">
                     <div className={`${showMobileChat ? 'hidden' : 'flex'} md:flex w-full md:w-auto lg:max-w-sm md:max-w-[250px] flex-shrink-0 h-full border-r border-gray-100`}>
                         <ChatList
                             contacts={chatGroups.map(group => ({
