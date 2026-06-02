@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from "react-toastify";
-import { Phone, ArrowLeft, Mail, ExternalLink, CheckCheck } from 'lucide-react';
+import { Phone, ArrowLeft, Mail, ExternalLink, CheckCheck, Lock } from 'lucide-react';
 import { Avatar } from '../../../ui/Avatar';
 import { Alert } from '../../../ui/Alert';
 import { StatusMenu } from '../../global/StatusMenu';
@@ -11,7 +11,8 @@ import { useUpdateStatusMessage, useUnlockMessage } from '../../../hooks/useCont
  */
 export function ChatWindow({ chat, onBack }) {
     const [openMenuId, setOpenMenuId] = useState(null);
-    const triggerRefs = useRef({}); // Stocke les refs de chaque bouton
+    const [unlockingId, setUnlockingId] = useState(null);
+    const triggerRefs = useRef({});
 
     const {
         mutate: mutateUpdateStatus,
@@ -28,7 +29,6 @@ export function ChatWindow({ chat, onBack }) {
         isSuccess: isSuccessUnlock,
         isError: isErrorUnlock,
         error: errorUnlock,
-        isPending: isUnlocking,
         reset: resetUnlocking
     } = useUnlockMessage();
 
@@ -49,9 +49,8 @@ export function ChatWindow({ chat, onBack }) {
      * Handles handle unlock behavior.
      */
     const handleUnlock = (messageId) => {
-        mutateUnlockMessage({
-            id: messageId
-        });
+        setUnlockingId(messageId);
+        mutateUnlockMessage({ id: messageId });
     };
 
     useEffect(() => {
@@ -75,8 +74,9 @@ export function ChatWindow({ chat, onBack }) {
             }
         }
 
-        resetUpdateStatus()
-        resetUnlocking()
+        resetUpdateStatus();
+        resetUnlocking();
+        setUnlockingId(null);
     }, [isSuccessUpdateStatus, isErrorUpdateStatus, dataUpdateStatus, errorUpdateStatus, resetUpdateStatus, isSuccessUnlock, isErrorUnlock, dataUnlock, errorUnlock, resetUnlocking]);
 
     return (
@@ -123,11 +123,11 @@ export function ChatWindow({ chat, onBack }) {
                                 {msg.isUnlocked ? (
                                     <p className="text-gray-700 whitespace-pre-wrap">{msg.text}</p>
                                 ) : (
-                                    <div className="py-2">
+                                    <div className="relative py-2">
                                         <p className="text-gray-400 select-none blur-[4px]">
-                                            {msg.text.substring(0, 50)}...
+                                            {msg?.text?.substring(0, 50)}...
                                         </p>
-                                        <div className="absolute inset-0 flex items-center justify-center bg-white/40 rounded-2xl">
+                                        <div className="absolute inset-0 flex items-center justify-center bg-white/40 rounded-lg">
                                             <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full text-amber-700 text-[10px] font-bold">
                                                 <Lock size={12} /> Contenu verrouillé
                                             </div>
@@ -158,10 +158,10 @@ export function ChatWindow({ chat, onBack }) {
                                 {!msg.isUnlocked && (
                                     <button
                                         onClick={() => handleUnlock(msg.id)}
-                                        disabled={isUnlocking}
+                                        disabled={unlockingId === msg.id}
                                         className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-600 text-white text-[10px] font-bold hover:bg-purple-700 transition-colors shadow-sm disabled:opacity-50"
                                     >
-                                        {isUnlocking ? "Chargement..." : "Voir (500 Fcfa)"}
+                                        {unlockingId === msg.id ? "Chargement..." : "Voir (500 Fcfa)"}
                                         <ExternalLink size={12} />
                                     </button>
                                 )}
