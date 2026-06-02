@@ -84,7 +84,7 @@ export function ProviderCard({
                       {activities.map((activity, index) => (
                         <span
                           key={index}
-                          className="inline-block text-gray-500 text-[10px] md:text-[12px] px-2 py-0.5 rounded-md border border-gray-200 bg-gray-50 flex-shrink-0"
+                          className="inline-block text-[#E8524D] text-[10px] md:text-[12px] px-2 py-0.5 rounded-md border border-gray-200 bg-[#E8524D]/20 flex-shrink-0"
                         >
                           {activity}
                         </span>
