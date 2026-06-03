@@ -64,6 +64,11 @@ docker compose up -d
 docker compose ps
 ```
 
+```bash
+# Appliquer les modifs du code et relancer l'api sans supprimer la bd et les données (quand tout est deja déployé)
+docker compose up -d --no-deps --build api
+```
+
 Attendu :
 
 ```
