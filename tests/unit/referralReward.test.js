@@ -21,7 +21,8 @@ jest.mock('../../src/models', () => ({
         findOne: jest.fn()
     },
     Subscription: {
-        applyBonusDays: jest.fn()
+        applyBonusDays: jest.fn(),
+        removeBonusDays: jest.fn()
     },
     AuditLog: {
         log: (...args) => Promise.resolve()
@@ -45,7 +46,7 @@ jest.mock('../../src/utils/logger', () => ({
     warn: jest.fn(), info: jest.fn(), debug: jest.fn()
 }));
 
-const { attemptReward } = require('../../src/services/referralReward');
+const { attemptReward, rollbackIfApplicable } = require('../../src/services/referralReward');
 const { Referral, User, Provider, Subscription } = require('../../src/models');
 const { getSetting } = require('../../src/utils/settings');
 
@@ -176,6 +177,119 @@ describe('referralReward.attemptReward', () => {
     it('returns error status without throwing when DB blows up', async () => {
         Referral.findOne.mockRejectedValue(new Error('connection lost'));
         const r = await attemptReward('newbie-1');
+        expect(r.status).toBe('error');
+    });
+});
+
+describe('referralReward.rollbackIfApplicable', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        getSetting.mockImplementation((key, def) => {
+            if (key === 'referral.rollbackWindowDays') return Promise.resolve(30);
+            return Promise.resolve(def);
+        });
+    });
+
+    it('returns noop when there is no rewarded referral for the user', async () => {
+        Referral.findOne.mockResolvedValue(null);
+        const r = await rollbackIfApplicable('newbie-1');
+        expect(r.status).toBe('noop');
+        expect(Subscription.removeBonusDays).not.toHaveBeenCalled();
+    });
+
+    it('returns noop when the rollback window has elapsed', async () => {
+        const longAgo = new Date();
+        longAgo.setDate(longAgo.getDate() - 60);
+        const referral = {
+            id: 'ref-1',
+            referrerId: 'referrer-1',
+            referredUserId: 'newbie-1',
+            status: 'rewarded',
+            rewardDays: 7,
+            rewardedAt: longAgo,
+            save: jest.fn().mockResolvedValue()
+        };
+        Referral.findOne.mockResolvedValue(referral);
+
+        const r = await rollbackIfApplicable('newbie-1');
+
+        expect(r.status).toBe('noop');
+        expect(referral.save).not.toHaveBeenCalled();
+        expect(Subscription.removeBonusDays).not.toHaveBeenCalled();
+    });
+
+    it('returns noop when rollback window is configured to 0', async () => {
+        getSetting.mockImplementation((key, def) => {
+            if (key === 'referral.rollbackWindowDays') return Promise.resolve(0);
+            return Promise.resolve(def);
+        });
+        const recent = new Date();
+        recent.setDate(recent.getDate() - 1);
+        Referral.findOne.mockResolvedValue({
+            id: 'ref-1',
+            referrerId: 'referrer-1',
+            status: 'rewarded',
+            rewardDays: 7,
+            rewardedAt: recent,
+            save: jest.fn().mockResolvedValue()
+        });
+
+        const r = await rollbackIfApplicable('newbie-1');
+        expect(r.status).toBe('noop');
+    });
+
+    it('rolls back: subtracts days from referrer subscription and revokes the referral', async () => {
+        const recent = new Date();
+        recent.setDate(recent.getDate() - 5);
+        const referral = {
+            id: 'ref-1',
+            referrerId: 'referrer-1',
+            referredUserId: 'newbie-1',
+            status: 'rewarded',
+            rewardDays: 7,
+            rewardedAt: recent,
+            save: jest.fn().mockResolvedValue()
+        };
+        Referral.findOne.mockResolvedValue(referral);
+        User.findByPk.mockResolvedValue({ id: 'referrer-1' });
+        Provider.findOne.mockResolvedValue({ id: 'provider-9' });
+        Subscription.removeBonusDays.mockResolvedValue({ id: 'sub-1' });
+
+        const r = await rollbackIfApplicable('newbie-1');
+
+        expect(r.status).toBe('rolled_back');
+        expect(r.days).toBe(7);
+        expect(Subscription.removeBonusDays).toHaveBeenCalledWith('provider-9', 7);
+        expect(referral.status).toBe('revoked');
+        expect(referral.revokedReason).toMatch(/rollback window/);
+    });
+
+    it('still revokes the referral when the referrer has no Provider anymore', async () => {
+        const recent = new Date();
+        recent.setDate(recent.getDate() - 5);
+        const referral = {
+            id: 'ref-1',
+            referrerId: 'referrer-1',
+            referredUserId: 'newbie-1',
+            status: 'rewarded',
+            rewardDays: 7,
+            rewardedAt: recent,
+            save: jest.fn().mockResolvedValue()
+        };
+        Referral.findOne.mockResolvedValue(referral);
+        User.findByPk.mockResolvedValue({ id: 'referrer-1' });
+        Provider.findOne.mockResolvedValue(null);
+
+        const r = await rollbackIfApplicable('newbie-1');
+
+        expect(r.status).toBe('rolled_back');
+        expect(Subscription.removeBonusDays).not.toHaveBeenCalled();
+        expect(referral.status).toBe('revoked');
+    });
+
+    it('returns error status (does not throw) on unexpected failure', async () => {
+        Referral.findOne.mockRejectedValue(new Error('boom'));
+        const r = await rollbackIfApplicable('newbie-1');
         expect(r.status).toBe('error');
     });
 });

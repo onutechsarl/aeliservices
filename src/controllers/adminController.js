@@ -27,6 +27,7 @@ const {
 const cache = require("../config/redis");
 const { auditLogger } = require("../middlewares/audit");
 const logger = require("../utils/logger");
+const referralReward = require("../services/referralReward");
 
 /**
  * @desc    Get platform statistics (OPTIMIZED)
@@ -526,6 +527,14 @@ const updateUserStatus = asyncHandler(async (req, res) => {
   user.isActive = isActive;
   await user.save({ fields: ["isActive"] });
 
+  // If the user is being deactivated, roll back any referral bonus that was
+  // collected on their signup if still inside the rollback window.
+  if (oldValues.isActive && !isActive) {
+    referralReward
+      .rollbackIfApplicable(user.id, { req })
+      .catch((err) => logger.error("Referral rollback failed", { error: err.message }));
+  }
+
   // Audit Log
   auditLogger.userStatusChanged(req, user, isActive);
 
@@ -881,6 +890,12 @@ const deleteUser = asyncHandler(async (req, res) => {
     hadProvider: !!user.provider,
     providerBusinessName: user.provider?.businessName || null
   };
+
+  // Roll back any referral bonus collected on this user's signup BEFORE the
+  // cascade delete wipes out the Referral row.
+  await referralReward
+    .rollbackIfApplicable(user.id, { req })
+    .catch((err) => logger.error('Referral rollback failed', { error: err.message }));
 
   // Delete user (CASCADE will handle provider, reviews, favorites, tokens, etc.)
   await user.destroy();

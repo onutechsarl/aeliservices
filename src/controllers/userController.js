@@ -4,6 +4,7 @@ const { i18nResponse, sendEmailSafely } = require("../utils/helpers");
 const { deleteImage, getPublicIdFromUrl } = require("../config/cloudinary");
 const { passwordChangedConfirmationEmail } = require("../utils/emailTemplates");
 const logger = require("../utils/logger");
+const referralReward = require("../services/referralReward");
 
 /**
  * @desc    Get user profile
@@ -126,6 +127,12 @@ const deactivateAccount = asyncHandler(async (req, res) => {
   // Soft delete - just deactivate
   user.isActive = false;
   await user.save({ fields: ["isActive"] });
+
+  // Roll back any referral bonus collected on this user's signup if still
+  // inside the configured window. Best-effort: never blocks the response.
+  referralReward
+    .rollbackIfApplicable(user.id, { req })
+    .catch((err) => logger.error("Referral rollback failed", { error: err.message }));
 
   i18nResponse(req, res, 200, "user.accountDeactivated");
 });

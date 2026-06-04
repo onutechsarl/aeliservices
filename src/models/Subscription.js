@@ -284,6 +284,33 @@ Subscription.applyBonusDays = async function (providerId, days) {
 };
 
 /**
+ * Subtract bonus days from a provider's subscription.
+ *
+ * Used to roll back a referral reward when the referred user closes their
+ * account during the rollback window. No-op if no subscription is found.
+ * If the resulting endDate would land in the past, the subscription is
+ * flipped to "expired".
+ */
+Subscription.removeBonusDays = async function (providerId, days) {
+  if (!days || days <= 0) return null;
+  const sub = await this.findOne({ where: { providerId } });
+  if (!sub) return null;
+
+  const now = new Date();
+  const newEnd = new Date(sub.endDate);
+  newEnd.setDate(newEnd.getDate() - days);
+
+  if (newEnd <= now) {
+    sub.endDate = now;
+    sub.status = "expired";
+  } else {
+    sub.endDate = newEnd;
+  }
+  await sub.save();
+  return sub;
+};
+
+/**
  * Mark reminder as sent
  */
 Subscription.markReminderSent = async function (subscriptionId) {

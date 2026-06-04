@@ -107,4 +107,72 @@ const markRevoked = async (referral, reason) => {
     await referral.save({ fields: ['status', 'revokedAt', 'revokedReason'] });
 };
 
-module.exports = { attemptReward };
+/**
+ * Roll back the bonus given for `referredUserId` if the user is leaving the
+ * platform within the configured window (`referral.rollbackWindowDays`).
+ *
+ * Called when a user is soft-deactivated or hard-deleted. Idempotent — if
+ * the referral isn't in 'rewarded' state or the window has passed, this is
+ * a no-op. Failures are swallowed so they never block the account closure.
+ *
+ * Returns: { status: 'rolled_back' | 'noop' | 'error', reason? }
+ */
+const rollbackIfApplicable = async (referredUserId, { req } = {}) => {
+    try {
+        const referral = await Referral.findOne({
+            where: { referredUserId, status: 'rewarded' }
+        });
+        if (!referral) return { status: 'noop' };
+
+        const windowDays = await getSetting('referral.rollbackWindowDays', 30);
+        if (!windowDays || windowDays <= 0) {
+            return { status: 'noop', reason: 'rollback disabled' };
+        }
+
+        const rewardedAt = referral.rewardedAt ? new Date(referral.rewardedAt) : null;
+        if (!rewardedAt) return { status: 'noop' };
+        const ageDays = (Date.now() - rewardedAt.getTime()) / (1000 * 60 * 60 * 24);
+        if (ageDays > windowDays) {
+            return { status: 'noop', reason: 'window expired' };
+        }
+
+        const referrer = await User.findByPk(referral.referrerId);
+        if (referrer) {
+            const provider = await Provider.findOne({
+                where: { userId: referrer.id },
+                attributes: ['id']
+            });
+            if (provider && referral.rewardDays) {
+                await Subscription.removeBonusDays(provider.id, referral.rewardDays);
+            }
+        }
+
+        referral.status = 'revoked';
+        referral.revokedAt = new Date();
+        referral.revokedReason = 'Referred user left within rollback window';
+        await referral.save({
+            fields: ['status', 'revokedAt', 'revokedReason']
+        });
+
+        AuditLog.log({
+            userId: referral.referrerId,
+            action: 'rollback',
+            entityType: 'Referral',
+            entityId: referral.id,
+            oldValues: { status: 'rewarded', rewardDays: referral.rewardDays },
+            newValues: { status: 'revoked', reason: referral.revokedReason },
+            req
+        }).catch(() => null);
+
+        return { status: 'rolled_back', days: referral.rewardDays };
+    } catch (err) {
+        logger.error('Referral rollback failed', {
+            referredUserId,
+            error: err.message,
+            stack: err.stack
+        });
+        return { status: 'error', reason: err.message };
+    }
+};
+
+module.exports = { attemptReward, rollbackIfApplicable };

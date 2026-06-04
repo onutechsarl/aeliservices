@@ -48,6 +48,10 @@ jest.mock('../../src/utils/emailTemplates', () => ({
     passwordChangedConfirmationEmail: jest.fn()
 }));
 
+jest.mock('../../src/services/referralReward', () => ({
+    rollbackIfApplicable: (...args) => Promise.resolve({ status: 'noop' })
+}));
+
 const { User } = require('../../src/models');
 const { i18nResponse, sendEmailSafely } = require('../../src/utils/helpers');
 const { deleteImage, getPublicIdFromUrl } = require('../../src/config/cloudinary');

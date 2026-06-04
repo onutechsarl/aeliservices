@@ -100,6 +100,10 @@ jest.mock('../../src/config/redis', () => ({
     delByPattern: jest.fn()
 }));
 
+jest.mock('../../src/services/referralReward', () => ({
+    rollbackIfApplicable: (...args) => Promise.resolve({ status: 'noop' })
+}));
+
 const { User, Provider, Service, Review, Contact, Payment, ProviderApplication } = require('../../src/models');
 const { i18nResponse, getPaginationParams, getPaginationData, sendEmailSafely, buildSortOrder } = require('../../src/utils/helpers');
 const { sendEmail } = require('../../src/config/email');
