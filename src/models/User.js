@@ -220,6 +220,7 @@ User.prototype.toPublicJSON = function () {
         profilePhoto: this.profilePhoto,
         isActive: this.isActive,
         isEmailVerified: this.isEmailVerified,
+        referralCode: this.referralCode,
         createdAt: this.createdAt
     };
 };
