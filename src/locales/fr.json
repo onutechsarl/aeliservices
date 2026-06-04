@@ -170,7 +170,11 @@
     "alreadyAdmin": "Cet utilisateur est déjà administrateur",
     "notAdmin": "Cet utilisateur n'est pas administrateur",
     "cannotDemoteSelf": "Vous ne pouvez pas vous rétrograder vous-même",
-    "cannotDemoteLast": "Impossible de rétrograder le dernier administrateur"
+    "cannotDemoteLast": "Impossible de rétrograder le dernier administrateur",
+    "grantReasonRequired": "Le motif est obligatoire (3 caractères minimum)",
+    "grantDaysInvalid": "Le nombre de jours doit être un entier strictement positif",
+    "grantDaysOverMax": "Le nombre de jours dépasse la limite autorisée ({max})",
+    "subscriptionGranted": "Période d'abonnement offerte au prestataire"
   },
   "settings": {
     "notFound": "Paramètre introuvable"

@@ -19,6 +19,8 @@ const {
   createAdmin,
   promoteToAdmin,
   demoteAdmin,
+  grantSubscription,
+  getGrantHistory,
 } = require("../controllers/adminController");
 const {
   updateUserStatusValidation,
@@ -119,6 +121,10 @@ router.put(
   validate,
   reviewProviderDocuments,
 );
+
+// Admin grants a free subscription period to a provider
+router.post("/providers/:id/grant-subscription", grantSubscription);
+router.get("/providers/:id/grant-history", getGrantHistory);
 
 // Reviews moderation
 router.get("/reviews", getAllReviews);

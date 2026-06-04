@@ -155,7 +155,11 @@
     "alreadyAdmin": "This user is already an administrator",
     "notAdmin": "This user is not an administrator",
     "cannotDemoteSelf": "You cannot demote yourself",
-    "cannotDemoteLast": "Cannot demote the last administrator"
+    "cannotDemoteLast": "Cannot demote the last administrator",
+    "grantReasonRequired": "A reason is required (minimum 3 characters)",
+    "grantDaysInvalid": "Days must be a positive integer",
+    "grantDaysOverMax": "Days exceed the allowed maximum ({max})",
+    "subscriptionGranted": "Subscription period granted to the provider"
   },
   "settings": {
     "notFound": "Setting not found"

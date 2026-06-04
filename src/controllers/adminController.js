@@ -1279,6 +1279,141 @@ const demoteAdmin = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Grant a free subscription period to a provider
+ * @route   POST /api/admin/providers/:id/grant-subscription
+ * @access  Private (admin)
+ *
+ * Body: { days: number, reason: string }
+ *
+ * Either extends an existing subscription or creates one. The maximum number
+ * of days an admin can offer in a single grant is read from the
+ * `adminGrant.maxDays` platform setting (default 365).
+ */
+const grantSubscription = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { days, reason } = req.body;
+  const { Subscription, AuditLog } = require("../models");
+  const { getSetting } = require("../utils/settings");
+  const { subscriptionGrantedByAdminEmail } = require("../utils/emailTemplates");
+
+  if (!reason || typeof reason !== "string" || reason.trim().length < 3) {
+    throw new AppError(req.t("admin.grantReasonRequired"), 400);
+  }
+
+  const numericDays = Number(days);
+  if (!Number.isInteger(numericDays) || numericDays <= 0) {
+    throw new AppError(req.t("admin.grantDaysInvalid"), 400);
+  }
+
+  const maxDays = await getSetting("adminGrant.maxDays", 365);
+  if (numericDays > maxDays) {
+    throw new AppError(
+      req
+        .t("admin.grantDaysOverMax")
+        .replace("{max}", String(maxDays)),
+      400,
+    );
+  }
+
+  const provider = await Provider.findByPk(id, {
+    include: [{ model: User, as: "user", attributes: ["id", "email", "firstName"] }],
+  });
+  if (!provider) {
+    throw new AppError(req.t("provider.notFound"), 404);
+  }
+
+  const subscription = await Subscription.applyBonusDays(provider.id, numericDays);
+
+  await AuditLog.log({
+    userId: req.user.id,
+    action: "grant",
+    entityType: "AdminSubscriptionGrant",
+    entityId: provider.id,
+    newValues: {
+      providerId: provider.id,
+      days: numericDays,
+      reason: reason.trim(),
+      newEndDate: subscription.endDate,
+    },
+    req,
+  });
+
+  // Notify provider (best-effort)
+  if (provider.user?.email) {
+    sendEmailSafely(
+      {
+        to: provider.user.email,
+        ...subscriptionGrantedByAdminEmail({
+          firstName: provider.user.firstName,
+          businessName: provider.businessName,
+          days: numericDays,
+          endDate: subscription.endDate,
+          reason: reason.trim(),
+        }),
+      },
+      "Admin subscription grant",
+    ).catch(() => null);
+  }
+
+  // Invalidate provider cache
+  cache.delByPattern(`route:/api/providers*`).catch(() => null);
+  cache.del(cache.cacheKeys.provider(provider.id)).catch(() => null);
+
+  i18nResponse(req, res, 200, "admin.subscriptionGranted", {
+    providerId: provider.id,
+    days: numericDays,
+    endDate: subscription.endDate,
+  });
+});
+
+/**
+ * @desc    History of admin-granted subscriptions for a given provider
+ * @route   GET /api/admin/providers/:id/grant-history
+ * @access  Private (admin)
+ */
+const getGrantHistory = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { AuditLog } = require("../models");
+
+  const logs = await AuditLog.findAll({
+    where: {
+      entityType: "AdminSubscriptionGrant",
+      entityId: id,
+    },
+    order: [["createdAt", "DESC"]],
+    limit: 100,
+    include: [
+      {
+        model: User,
+        as: "user",
+        attributes: ["id", "firstName", "lastName", "email"],
+      },
+    ],
+  });
+
+  const grants = logs.map((log) => {
+    const json = log.toJSON();
+    return {
+      id: json.id,
+      grantedAt: json.createdAt,
+      grantedBy: json.user
+        ? {
+          id: json.user.id,
+          firstName: json.user.firstName,
+          lastName: json.user.lastName,
+          email: json.user.email,
+        }
+        : null,
+      days: json.newValues?.days,
+      reason: json.newValues?.reason,
+      newEndDate: json.newValues?.newEndDate,
+    };
+  });
+
+  i18nResponse(req, res, 200, "common.list", { grants });
+});
+
 module.exports = {
   getStats,
   getPendingProviders,
@@ -1297,5 +1432,7 @@ module.exports = {
   listAdmins,
   createAdmin,
   promoteToAdmin,
+  grantSubscription,
+  getGrantHistory,
   demoteAdmin,
 };

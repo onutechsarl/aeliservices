@@ -860,6 +860,32 @@ const providerReactivatedEmail = ({ firstName, businessName }) => {
 };
 
 /**
+ * Subscription granted by admin — sent to the provider when an administrator
+ * has offered them a subscription period (compensation, partnership, etc.).
+ */
+const subscriptionGrantedByAdminEmail = ({ firstName, businessName, days, endDate, reason }) => {
+  const formattedEnd = endDate ? new Date(endDate).toLocaleDateString('fr-FR') : '—';
+  return {
+    subject: `🎁 ${days} jours d'abonnement offerts par AELI Services`,
+    html: baseTemplate(`
+      <h2>Bonjour ${firstName},</h2>
+      <p>L'équipe AELI Services vient d'ajouter <strong>${days} jour${days > 1 ? 's' : ''}</strong> d'abonnement à votre profil
+        ${businessName ? `<strong>(${businessName})</strong>` : ''}.</p>
+      <div class="highlight">
+        <p>Votre abonnement est désormais valide jusqu'au <strong>${formattedEnd}</strong>.</p>
+      </div>
+      ${reason ? `<div class="info-box"><p><strong>Motif :</strong> ${reason}</p></div>` : ''}
+      <p>Pendant cette période, votre profil reste pleinement visible, vos coordonnées sont accessibles
+        et vos photos restent affichées.</p>
+      <p style="text-align: center; margin-top: 30px;">
+        <a href="${frontendUrl}/my-dashboard" class="button">Accéder à mon tableau de bord</a>
+      </p>
+      <p><em>L'équipe AELI Services</em></p>
+    `)
+  };
+};
+
+/**
  * Referral rewarded — sent to the referrer when a friend they invited has
  * verified their email and the bonus has been applied.
  */
@@ -909,5 +935,6 @@ module.exports = {
   providerVerificationRevokedEmail,
   providerDeactivatedEmail,
   providerReactivatedEmail,
-  referralRewardedEmail
+  referralRewardedEmail,
+  subscriptionGrantedByAdminEmail
 };
