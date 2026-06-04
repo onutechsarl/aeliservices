@@ -33,6 +33,9 @@ jest.mock("../../src/models", () => ({
     update: jest.fn(),
     revokeAllForUser: jest.fn(),
   },
+  Referral: {
+    create: jest.fn(),
+  },
 }));
 
 jest.mock("jsonwebtoken");
@@ -236,6 +239,127 @@ describe("Auth Controller", () => {
 
       await expect(register(mockReq, mockRes, mockNext)).rejects.toThrow(
         "validation.emailInUse"
+      );
+    });
+
+    it("should register and record a pending referral when a valid referralCode is provided", async () => {
+      const { Referral } = require("../../src/models");
+      mockReq.body = {
+        email: "newbie@example.com",
+        password: "password123",
+        confirmPassword: "password123",
+        firstName: "Newbie",
+        lastName: "User",
+        referralCode: "aeli-abc123", // lowercased input — must be normalized
+      };
+
+      // 1st findOne (email lookup) returns null, 2nd findOne (referrer) returns a user
+      User.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "referrer-1", referralCode: "AELI-ABC123" });
+
+      const mockUser = {
+        id: "user-456",
+        email: "newbie@example.com",
+        firstName: "Newbie",
+        role: "client",
+        save: jest.fn().mockResolvedValue(),
+      };
+      User.create.mockResolvedValue(mockUser);
+      Referral.create.mockResolvedValue();
+
+      await register(mockReq, mockRes, mockNext);
+
+      // Second findOne was the referrer lookup with normalized code + isActive guard
+      expect(User.findOne.mock.calls[1][0]).toMatchObject({
+        where: { referralCode: "AELI-ABC123", isActive: true },
+      });
+      expect(Referral.create).toHaveBeenCalledWith({
+        referrerId: "referrer-1",
+        referredUserId: "user-456",
+        codeUsed: "AELI-ABC123",
+        status: "pending",
+      });
+      expect(i18nResponse).toHaveBeenCalledWith(
+        mockReq,
+        mockRes,
+        201,
+        "auth.registered",
+        expect.objectContaining({ referralAccepted: true })
+      );
+    });
+
+    it("should still register when the referralCode is unknown", async () => {
+      const { Referral } = require("../../src/models");
+      mockReq.body = {
+        email: "newbie@example.com",
+        password: "password123",
+        confirmPassword: "password123",
+        firstName: "Newbie",
+        lastName: "User",
+        referralCode: "AELI-NOPE99",
+      };
+
+      // 1st (email) → null, 2nd (referrer) → null
+      User.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+
+      const mockUser = {
+        id: "user-789",
+        email: "newbie@example.com",
+        firstName: "Newbie",
+        role: "client",
+        save: jest.fn().mockResolvedValue(),
+      };
+      User.create.mockResolvedValue(mockUser);
+
+      await register(mockReq, mockRes, mockNext);
+
+      expect(Referral.create).not.toHaveBeenCalled();
+      expect(i18nResponse).toHaveBeenCalledWith(
+        mockReq,
+        mockRes,
+        201,
+        "auth.registered",
+        expect.objectContaining({ referralAccepted: false })
+      );
+    });
+
+    it("should not block registration when the Referral insert fails", async () => {
+      const { Referral } = require("../../src/models");
+      mockReq.body = {
+        email: "newbie@example.com",
+        password: "password123",
+        confirmPassword: "password123",
+        firstName: "Newbie",
+        lastName: "User",
+        referralCode: "AELI-OK1234",
+      };
+
+      User.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "referrer-2", referralCode: "AELI-OK1234" });
+
+      const mockUser = {
+        id: "user-999",
+        email: "newbie@example.com",
+        firstName: "Newbie",
+        role: "client",
+        save: jest.fn().mockResolvedValue(),
+      };
+      User.create.mockResolvedValue(mockUser);
+      Referral.create.mockRejectedValue(new Error("unique constraint"));
+
+      await register(mockReq, mockRes, mockNext);
+
+      // Registration completed despite Referral failure
+      expect(i18nResponse).toHaveBeenCalledWith(
+        mockReq,
+        mockRes,
+        201,
+        "auth.registered",
+        expect.any(Object)
       );
     });
   });

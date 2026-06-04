@@ -51,7 +51,14 @@ const registerValidation = [
     body('gender')
         .optional()
         .isIn(['male', 'female', 'other', 'prefer_not_to_say'])
-        .withMessage('Genre invalide')
+        .withMessage('Genre invalide'),
+
+    body('referralCode')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isString()
+        .isLength({ max: 40 })
+        .withMessage('Code de parrainage invalide')
 ];
 
 /**

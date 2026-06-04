@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const { User, Provider, RefreshToken } = require("../models");
+const { User, Provider, RefreshToken, Referral } = require("../models");
 const { asyncHandler, AppError } = require("../middlewares/errorHandler");
 const { sendEmail } = require("../config/email");
 const {
@@ -64,6 +64,7 @@ const register = asyncHandler(async (req, res) => {
     phone,
     country,
     gender,
+    referralCode,
   } = req.body;
 
   // Validate confirmPassword
@@ -75,6 +76,23 @@ const register = asyncHandler(async (req, res) => {
   const existingUser = await User.findOne({ where: { email } });
   if (existingUser) {
     throw new AppError(req.t("validation.emailInUse"), 400);
+  }
+
+  // Resolve optional referral code BEFORE creating the user, so we never end
+  // up with an orphan user when the Referral insert fails. The code is best-
+  // effort: an unknown code does not block the registration.
+  let referrer = null;
+  if (referralCode) {
+    const normalized = String(referralCode).trim().toUpperCase();
+    referrer = await User.findOne({
+      where: { referralCode: normalized, isActive: true },
+      attributes: ["id", "referralCode"],
+    });
+    if (!referrer) {
+      logger.warn("Unknown referral code submitted on register", {
+        code: normalized,
+      });
+    }
   }
 
   // Create user (email not verified)
@@ -89,6 +107,24 @@ const register = asyncHandler(async (req, res) => {
     role: "client", // All users start as clients, can apply to become provider
     isEmailVerified: false,
   });
+
+  // Record the referral as pending (rewarded on email verification by phase 3)
+  if (referrer && referrer.id !== user.id) {
+    try {
+      await Referral.create({
+        referrerId: referrer.id,
+        referredUserId: user.id,
+        codeUsed: referrer.referralCode,
+        status: "pending",
+      });
+    } catch (err) {
+      logger.warn("Could not record referral", {
+        referrerId: referrer.id,
+        referredUserId: user.id,
+        error: err.message,
+      });
+    }
+  }
 
   // Generate and send OTP
   const otp = generateOTP();
@@ -123,6 +159,7 @@ const register = asyncHandler(async (req, res) => {
       isEmailVerified: false,
     },
     requiresOTP: true,
+    referralAccepted: !!(referrer && referrer.id !== user.id),
   });
 });
 
