@@ -90,6 +90,8 @@ La migration `20260331112000-update-admin-credentials` crée (ou met à jour) le
 
 La migration `20260430120000-add-slug-to-providers` ajoute la colonne `slug` sur la table `providers` et **backfill** les slugs des prestataires déjà en base à partir de leur `business_name` (ex. `"Eco Prestige"` → `eco-prestige`). À lancer une seule fois après le déploiement de la feature de partage de profil.
 
+Les migrations `20260520120000-create-platform-settings`, `20260520121000-add-referral-code-to-users` et `20260520122000-create-referrals` livrent la table de configuration runtime (`platform_settings`, seedée avec les valeurs par défaut), la colonne `referral_code` sur les utilisateurs (backfillée pour les comptes existants) et la table `referrals` qui suit les parrainages. Aucune action manuelle requise après leur application — tous les paramètres se gèrent ensuite depuis le dashboard admin (`/api/admin/settings`).
+
 ## 5. Seeder les données de production
 
 Seul le jeu de **catégories** est inséré. Aucune donnée fictive (utilisateurs, prestataires, services, avis) n'est seedée.

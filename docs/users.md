@@ -246,6 +246,97 @@ Désactive le compte de l'utilisateur (soft delete).
 
 ---
 
+## 🎁 5. PROGRAMME DE PARRAINAGE
+
+Chaque utilisateur reçoit automatiquement un code de parrainage à l'inscription (format `AELI-XXXXXX`). Quand quelqu'un s'inscrit en utilisant ce code, le parrain reçoit une période d'abonnement offerte (durée configurée par l'admin, 7 jours par défaut).
+
+Le bonus est appliqué automatiquement après la vérification OTP du filleul, à condition que le parrain soit lui-même prestataire. S'il ne l'est pas, le parrainage est marqué `revoked` avec une raison claire — il pourra parrainer à nouveau plus tard.
+
+Si le filleul ferme ou désactive son compte dans la fenêtre configurée (30 jours par défaut), le bonus du parrain est automatiquement annulé (anti-abus).
+
+### `GET /me/referral` - Mon code et mon lien de partage
+
+**🔒 Authentification requise**
+
+**Description :**
+Renvoie le code de parrainage de l'utilisateur connecté et une URL prête à partager.
+
+**Réponse 200 :**
+```json
+{
+  "success": true,
+  "data": {
+    "referralCode": "AELI-X7K2P9",
+    "shareUrl": "https://app.aeli.cm/register?ref=AELI-X7K2P9"
+  }
+}
+```
+
+> L'URL est construite avec le bon domaine selon le rôle (admin → domaine admin, autres → domaine user).
+
+### `GET /me/referrals` - Mes parrainages
+
+**🔒 Authentification requise**
+
+**Paramètres query :**
+| Param | Type | Défaut | Description |
+|-------|------|--------|-------------|
+| `page` | int | 1 | Numéro de page |
+| `limit` | int | 20 | Éléments par page |
+| `status` | string | - | Filtre `pending`, `rewarded`, `revoked` (toute autre valeur ignorée) |
+
+**Réponse 200 :**
+```json
+{
+  "success": true,
+  "data": {
+    "referrals": [
+      {
+        "id": "uuid",
+        "status": "rewarded",
+        "codeUsed": "AELI-X7K2P9",
+        "rewardDays": 7,
+        "rewardedAt": "2026-05-01T10:00:00Z",
+        "revokedAt": null,
+        "revokedReason": null,
+        "createdAt": "2026-04-28T15:30:00Z",
+        "referredUser": {
+          "displayName": "Marie K.",
+          "isEmailVerified": true
+        }
+      }
+    ],
+    "pagination": { "currentPage": 1, "totalItems": 1, "itemsPerPage": 20 }
+  }
+}
+```
+
+> Le nom du filleul est masqué en `Prénom I.` (RGPD-friendly). Ni l'email ni le téléphone du filleul ne sont exposés.
+
+### `GET /me/referrals/stats` - Statistiques de mes parrainages
+
+**🔒 Authentification requise**
+
+**Réponse 200 :**
+```json
+{
+  "success": true,
+  "data": {
+    "stats": {
+      "total": 6,
+      "pending": 2,
+      "rewarded": 3,
+      "revoked": 1,
+      "totalDaysEarned": 28
+    }
+  }
+}
+```
+
+> `totalDaysEarned` est la somme des `rewardDays` des parrainages `rewarded` (ne déduit pas les éventuels rollbacks ultérieurs qui sont déjà reflétés par le passage de `rewarded` à `revoked`).
+
+---
+
 ## 🎨 Formulaires Frontend Suggérés
 
 ### Formulaire Profil

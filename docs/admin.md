@@ -307,6 +307,63 @@ GET /api/admin/analytics/daily-active-users?days=14
 
 ---
 
+## ⚙️ Paramètres plateforme (configurables sans redéploiement)
+
+Six paramètres sont stockés en base (table `platform_settings`) et lus à la volée par le backend via un cache Redis de 5 min. Toute écriture invalide le cache et crée une entrée dans `audit_logs` pour traçabilité.
+
+| Clé | Type | Défaut | Min/Max | Description |
+|---|---|---|---|---|
+| `referral.rewardDays` | int | 7 | 1/365 | Jours offerts au parrain par parrainage validé |
+| `referral.monthlyCap` | int | 20 | 1/1000 | Parrainages récompensés max par mois et par parrain |
+| `referral.rollbackWindowDays` | int | 30 | 0/365 | Fenêtre d'annulation si le filleul ferme son compte (0 = désactivé) |
+| `referral.requireEmailVerified` | bool | true | — | Si `true`, le bonus se déclenche à la vérification OTP ; sinon dès l'inscription |
+| `referral.codeLength` | int | 6 | 4/12 | Longueur du suffixe aléatoire des codes `AELI-XXXXXX` |
+| `adminGrant.maxDays` | int | 365 | 1/3650 | Jours max qu'un admin peut offrir en un seul grant |
+
+### `GET /settings` - Lister tous les paramètres
+
+**Réponse 200 :**
+```json
+{
+  "success": true,
+  "data": {
+    "settings": [
+      {
+        "key": "referral.rewardDays",
+        "value": 7,
+        "defaultValue": 7,
+        "valueType": "int",
+        "description": "Jours offerts au parrain...",
+        "minValue": 1,
+        "maxValue": 365,
+        "updatedAt": "2026-05-09T12:00:00Z"
+      }
+    ]
+  }
+}
+```
+
+### `GET /settings/:key` - Détail d'un paramètre
+
+Renvoie la même structure que ci-dessus pour un seul `key`.
+
+### `PUT /settings/:key` - Modifier un paramètre
+
+**Body :**
+```json
+{ "value": 14 }
+```
+
+**Validation :** type cohérent (int/float/bool/string/json) + bornes min/max. Sinon `400`.
+
+**Effet :** la nouvelle valeur est sauvegardée, le cache Redis est invalidé, une entrée d'audit est créée (qui a changé quoi, ancienne valeur → nouvelle valeur).
+
+### `POST /settings/:key/reset` - Restaurer la valeur par défaut
+
+Remet le `value` au `defaultValue` du paramètre. Audit log également créé.
+
+---
+
 ## 👥 2. GESTION DES UTILISATEURS
 
 ### `GET /users` - Liste des utilisateurs
@@ -750,6 +807,67 @@ Validation détaillée des documents soumis par un prestataire (CNI, licence com
   "rejectedDocuments": [
     { "index": 2, "reason": "Document expiré" }
   ]
+}
+```
+
+---
+
+### `POST /providers/:id/grant-subscription` - Offrir une période d'abonnement
+
+**Description :**
+Permet à un administrateur d'offrir N jours d'abonnement à un prestataire (compensation, partenariat, geste commercial...). Si le prestataire a déjà un abonnement, sa date de fin est prolongée. Sinon, un abonnement actif est créé pour la durée demandée.
+
+**Body :**
+```json
+{
+  "days": 14,
+  "reason": "Compensation incident facturation"
+}
+```
+
+**Validation :**
+- `reason` : string, 3 caractères minimum
+- `days` : entier strictement positif
+- `days` ≤ `adminGrant.maxDays` (paramètre admin, 365 par défaut)
+
+**Effet :**
+- Met à jour la souscription du prestataire (extension de `endDate` ou création).
+- Crée un `AuditLog` typé `AdminSubscriptionGrant` (qui, quand, combien, pourquoi, nouvelle date de fin).
+- Envoie un email au prestataire (`🎁 X jours d'abonnement offerts...`).
+- Invalide les caches de la fiche prestataire.
+
+**Réponse 200 :**
+```json
+{
+  "success": true,
+  "data": {
+    "providerId": "uuid",
+    "days": 14,
+    "endDate": "2027-01-01T00:00:00Z"
+  }
+}
+```
+
+### `GET /providers/:id/grant-history` - Historique des dons d'abonnement
+
+Renvoie les 100 grants les plus récents pour ce prestataire, classés du plus récent au plus ancien. Inclut l'admin qui a accordé chaque grant (id, nom, email).
+
+**Réponse 200 :**
+```json
+{
+  "success": true,
+  "data": {
+    "grants": [
+      {
+        "id": "audit-log-uuid",
+        "grantedAt": "2026-05-09T12:00:00Z",
+        "grantedBy": { "id": "admin-1", "firstName": "Op", "lastName": "Aeli", "email": "ops@aeli.cm" },
+        "days": 14,
+        "reason": "Compensation incident facturation",
+        "newEndDate": "2027-01-01T00:00:00Z"
+      }
+    ]
+  }
 }
 ```
 

@@ -224,6 +224,9 @@ curl http://localhost:5000/api/health/db
 | PUT | `/profile` | Update profile |
 | PUT | `/password` | Change password |
 | DELETE | `/account` | Deactivate account |
+| GET | `/me/referral` | My referral code + shareable URL |
+| GET | `/me/referrals` | Paginated list of my referrals (status filterable) |
+| GET | `/me/referrals/stats` | Aggregated stats (totals + days earned) |
 
 ### Providers (`/api/providers`)
 | Method | Endpoint | Description |
@@ -281,11 +284,21 @@ curl http://localhost:5000/api/health/db
 | GET | `/providers/pending` | Pending providers |
 | PUT | `/providers/:id/verify` | Verify provider |
 | PUT | `/providers/:id/feature` | Feature provider |
+| POST | `/providers/:id/grant-subscription` | Grant N days of subscription to a provider (admin-configurable max) |
+| GET | `/providers/:id/grant-history` | Audit history of admin-issued subscription grants |
 | GET | `/reviews` | All reviews |
 | PUT | `/reviews/:id/visibility` | Moderate review |
 | GET | `/analytics` | Top endpoints + global stats (top 20 routes, errors, avg duration) |
 | GET | `/analytics/hourly?date=YYYY-MM-DD` | Hourly request breakdown for a date |
 | GET | `/analytics/daily-active-users?days=N` | Distinct users logged in per day (1-365 days, default 30) |
+| GET | `/admins` | List admin accounts |
+| POST | `/admins` | Create a new admin |
+| PUT | `/admins/:id/promote` | Promote an existing user to admin |
+| PUT | `/admins/:id/demote` | Demote an admin back to client or provider |
+| GET | `/settings` | List all admin-tunable platform settings |
+| GET | `/settings/:key` | Fetch one setting |
+| PUT | `/settings/:key` | Update a setting value (typed + range-validated) |
+| POST | `/settings/:key/reset` | Restore default value |
 
 ### Search (`/api/search`)
 | Method | Endpoint | Description |

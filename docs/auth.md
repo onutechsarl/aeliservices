@@ -23,7 +23,7 @@ Crée un nouveau compte utilisateur. Par défaut, tous les utilisateurs sont cr�
 4. Envoie l'OTP par email
 5. Crée l'utilisateur avec `isEmailVerified = false`
 
-**Rate Limiting :** 5 requêtes / 15 min par IP
+**Rate Limiting :** aucune limite spécifique sur cette route (le rate limit global de l'API s'applique).
 
 **Body :**
 ```json
@@ -35,7 +35,8 @@ Crée un nouveau compte utilisateur. Par défaut, tous les utilisateurs sont cr�
   "lastName": "Dupont",
   "phone": "+237699123456",  // Optionnel
   "country": "Cameroun",      // Optionnel, défaut: Cameroun
-  "gender": "female"          // Optionnel: male, female, other, prefer_not_to_say
+  "gender": "female",         // Optionnel: male, female, other, prefer_not_to_say
+  "referralCode": "AELI-X7K2P9" // Optionnel — code de parrainage d'un autre user
 }
 ```
 
@@ -46,6 +47,7 @@ Crée un nouveau compte utilisateur. Par défaut, tous les utilisateurs sont cr�
 - `firstName`, `lastName` : 2-100 caractères
 - `country` : optionnel, 2-100 caractères
 - `gender` : optionnel, valeurs acceptées: `male`, `female`, `other`, `prefer_not_to_say`
+- `referralCode` : optionnel, string ≤ 40 caractères. Normalisé en majuscules. Un code inconnu n'empêche pas l'inscription, le champ `referralAccepted` indique simplement `false` dans la réponse.
 
 **Réponse 201 :**
 ```json
@@ -60,9 +62,16 @@ Crée un nouveau compte utilisateur. Par défaut, tous les utilisateurs sont cr�
     "role": "client",
     "profilePhoto": null,
     "isEmailVerified": false
-  }
+  },
+  "requiresOTP": true,
+  "referralAccepted": true
 }
 ```
+
+**À propos du parrainage :**
+- Si `referralCode` correspond à un utilisateur actif, un enregistrement `Referral` est créé en statut `pending`.
+- Le bonus est appliqué automatiquement au parrain quand le filleul vérifie son email via l'OTP (réglage par défaut, modifiable depuis le dashboard admin).
+- Le filleul ne reçoit rien (v1 du programme).
 
 **⚠️ Important :**  
 L'utilisateur ne peut PAS se connecter tant qu'il n'a pas vérifié son email avec l'OTP.
