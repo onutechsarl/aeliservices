@@ -34,6 +34,7 @@ export const useGetServicesByProvider = (id) => {
         queryKey: ["useGetServicesByProvider", id],
         queryFn: () => request(`/api/services/provider/${id}`, "GET"),
         refetchOnWindowFocus: false,
+        enabled: !!id,
     });
 };
 

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Filter, ChevronDown } from 'lucide-react';
-import { Button } from '../../ui/Button'; // Ajuste le chemin
+import { Filter, ChevronDown, Search } from 'lucide-react';
+import { Button } from '../../ui/Button';
 
 export const SelectFilter = ({
     options,
@@ -12,24 +12,34 @@ export const SelectFilter = ({
     customIcon
 }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const containerRef = useRef(null);
+    const searchInputRef = useRef(null);
 
     useEffect(() => {
-        /**
-         * Handles handle click outside behavior.
-         */
         const handleClickOutside = (event) => {
             if (containerRef.current && !containerRef.current.contains(event.target)) {
                 setIsOpen(false);
+                setSearchQuery('');
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    useEffect(() => {
+        if (isOpen && searchInputRef.current) {
+            setTimeout(() => searchInputRef.current?.focus(), 50);
+        }
+        if (!isOpen) setSearchQuery('');
+    }, [isOpen]);
+
+    const filteredOptions = options.filter(opt =>
+        opt.toString().toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
         <div className={`relative inline-block ${className}`} ref={containerRef}>
-            { }
             <Button
                 variant="secondary"
                 onClick={() => setIsOpen(!isOpen)}
@@ -47,22 +57,37 @@ export const SelectFilter = ({
                 />
             </Button>
 
-            { }
             {isOpen && (
                 <div className="absolute left-0 md:right-0 mt-2 min-w-full bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden">
-                    <div className="p-1.5 flex flex-col gap-0.5">
-                        <Button
-                            variant={value === 'Tout' ? 'filterSelected' : 'filterGhost'}
-                            onClick={() => { onChange(''); setIsOpen(false); }}
-                            className="w-full !justify-start"
-                        >
-                            Toutes les {label}s
-                        </Button>
-
-                        <div className="h-px bg-gray-100 my-1 mx-2" />
-
-                        { }
-                        {options.map((opt) => (
+                    {options.length > 4 && (
+                        <div className="p-2 border-b border-gray-100">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg">
+                                <Search size={14} className="text-slate-400 flex-shrink-0" />
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Rechercher..."
+                                    className="flex-1 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
+                                />
+                            </div>
+                        </div>
+                    )}
+                    <div className="p-1.5 flex flex-col gap-0.5 max-h-[250px] overflow-y-auto">
+                        {!searchQuery && (
+                            <>
+                                <Button
+                                    variant={value === 'Tout' ? 'filterSelected' : 'filterGhost'}
+                                    onClick={() => { onChange(''); setIsOpen(false); }}
+                                    className="w-full !justify-start"
+                                >
+                                    Toutes les {label}s
+                                </Button>
+                                <div className="h-px bg-gray-100 my-1 mx-2" />
+                            </>
+                        )}
+                        {filteredOptions.map((opt) => (
                             <Button
                                 key={opt}
                                 variant={value === opt ? 'filterSelected' : 'filterGhost'}
@@ -72,6 +97,9 @@ export const SelectFilter = ({
                                 {opt}
                             </Button>
                         ))}
+                        {filteredOptions.length === 0 && (
+                            <p className="text-xs text-slate-400 text-center py-3">Aucun résultat</p>
+                        )}
                     </div>
                 </div>
             )}

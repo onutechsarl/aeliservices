@@ -66,6 +66,9 @@ export const useUnlockMessage = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationKey: ["useUnlockMessage"],
-        mutationFn: ({ id, formData }) => request(`/api/contacts/${id}/unlock`, "POST", formData),
+        mutationFn: ({ id }) => request(`/api/contacts/${id}/unlock`, "POST", {}),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["useGetReceivedContact"] });
+        },
     });
 };

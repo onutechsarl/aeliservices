@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { UploadCloud, ChevronDown, Check } from 'lucide-react'
+import { UploadCloud, ChevronDown, Check, Search } from 'lucide-react'
 import { Button } from './Button'
 
 /**
@@ -23,17 +23,17 @@ export function Input({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [filePreview, setFilePreview] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const containerRef = useRef(null)
+  const searchInputRef = useRef(null)
 
   const baseInputStyles = `w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 ${isreadOnly ? "cursor-default" : "focus:bg-white focus:ring-2 focus:ring-[#FCE0D6] focus:border-transparent transition-all"} outline-none text-slate-800 placeholder:text-slate-400`
 
   useEffect(() => {
-    /**
-     * Handles handle click outside behavior.
-     */
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
         setIsOpen(false)
+        setSearchQuery('')
       }
     }
     if (type === 'select') {
@@ -41,6 +41,13 @@ export function Input({
     }
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [type])
+
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 50)
+    }
+    if (!isOpen) setSearchQuery('')
+  }, [isOpen])
 
   useEffect(() => {
     if (props.previewImage) {
@@ -90,23 +97,43 @@ export function Input({
 
             {isOpen && (
               <div className="absolute left-0 right-0 mt-2 min-w-full bg-white border border-gray-100 rounded-xl shadow-xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                <div className="p-1 max-h-[250px] overflow-y-auto">
-                  {options.map((opt) => (
-                    <Button
-                      key={opt.value}
-                      type="button"
-                      variant={value === opt.value ? 'filterSelected' : 'filterGhost'}
-                      className="w-full !justify-between !px-3 !py-2.5 !rounded-lg !text-xs"
-                      onClick={() => {
-                        onChange({ target: { name, value: opt.value } });
-                        setIsOpen(false);
-                      }}
-                    >
-                      {opt.label}
-                      {value === opt.value && <Check size={14} />}
-                    </Button>
-                  ))}
-                  {titleButtonSelectAutre &&
+                {options.length > 4 && (
+                  <div className="p-2 border-b border-gray-100">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg">
+                      <Search size={14} className="text-slate-400 flex-shrink-0" />
+                      <input
+                        ref={searchInputRef}
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Rechercher..."
+                        className="flex-1 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="p-1 max-h-[220px] overflow-y-auto">
+                  {options
+                    .filter(opt => opt.label.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((opt) => (
+                      <Button
+                        key={opt.value}
+                        type="button"
+                        variant={value === opt.value ? 'filterSelected' : 'filterGhost'}
+                        className="w-full !justify-between !px-3 !py-2.5 !rounded-lg !text-xs"
+                        onClick={() => {
+                          onChange({ target: { name, value: opt.value } });
+                          setIsOpen(false);
+                        }}
+                      >
+                        {opt.label}
+                        {value === opt.value && <Check size={14} />}
+                      </Button>
+                    ))}
+                  {options.filter(opt => opt.label.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                    <p className="text-xs text-slate-400 text-center py-3">Aucun résultat</p>
+                  )}
+                  {titleButtonSelectAutre && !searchQuery && (
                     <Button
                       variant="secondary"
                       size="md"
@@ -115,9 +142,8 @@ export function Input({
                     >
                       {titleButtonSelectAutre}
                     </Button>
-                  }
+                  )}
                 </div>
-
               </div>
             )}
           </div>
