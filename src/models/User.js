@@ -138,6 +138,14 @@ const User = sequelize.define('User', {
         allowNull: true,
         field: 'last_activity',
         comment: 'Last user activity timestamp for session timeout'
+    },
+    // Referral program
+    referralCode: {
+        type: DataTypes.STRING(40),
+        allowNull: true,
+        unique: true,
+        field: 'referral_code',
+        comment: 'Shareable code so new users can register through this user.'
     }
 }, {
     tableName: 'users',
@@ -148,7 +156,7 @@ const User = sequelize.define('User', {
             if (user.password) {
                 // Vérifier si le mot de passe est déjà un hash bcrypt
                 const isAlreadyHashed = user.password.startsWith('$2a$') || user.password.startsWith('$2b$');
-                
+
                 if (!isAlreadyHashed) {
                     // Hasher seulement si ce n'est pas déjà un hash
                     const salt = await bcrypt.genSalt(10);
@@ -158,6 +166,11 @@ const User = sequelize.define('User', {
             // Encrypt phone
             if (user.phone) {
                 user.phone = encryptIfNeeded(user.phone);
+            }
+            // Auto-generate a unique referral code if not already provided
+            if (!user.referralCode) {
+                const { generateUniqueReferralCode } = require('../utils/referralCode');
+                user.referralCode = await generateUniqueReferralCode(user.constructor);
             }
         },
         beforeUpdate: async (user) => {

@@ -157,6 +157,9 @@
     "cannotDemoteSelf": "You cannot demote yourself",
     "cannotDemoteLast": "Cannot demote the last administrator"
   },
+  "settings": {
+    "notFound": "Setting not found"
+  },
   "validation": {
     "emailRequired": "Email is required",
     "emailInvalid": "Invalid email",

@@ -66,6 +66,19 @@ router.put(
 );
 router.delete("/users/:id", deleteUserValidation, validate, deleteUser);
 
+// ============ PLATFORM SETTINGS ============
+const {
+  listSettings,
+  getOneSetting,
+  updateSetting,
+  resetSetting,
+} = require("../controllers/settingsController");
+
+router.get("/settings", listSettings);
+router.get("/settings/:key", getOneSetting);
+router.put("/settings/:key", updateSetting);
+router.post("/settings/:key/reset", resetSetting);
+
 // ============ ADMIN ACCOUNTS ============
 router.get("/admins", listAdmins);
 router.post("/admins", createAdmin);

@@ -172,6 +172,9 @@
     "cannotDemoteSelf": "Vous ne pouvez pas vous rétrograder vous-même",
     "cannotDemoteLast": "Impossible de rétrograder le dernier administrateur"
   },
+  "settings": {
+    "notFound": "Paramètre introuvable"
+  },
   "validation": {
     "emailRequired": "L'email est requis",
     "emailInvalid": "Email invalide",

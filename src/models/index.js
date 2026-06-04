@@ -211,6 +211,31 @@ ProviderApplication.belongsTo(User, {
     as: 'user'
 });
 
+// PlatformSetting (no associations — pure key/value)
+const PlatformSetting = require('./PlatformSetting');
+
+// Referral (referrer User -> referred User)
+const Referral = require('./Referral');
+
+User.hasMany(Referral, {
+    foreignKey: 'referrerId',
+    as: 'referralsMade',
+    onDelete: 'CASCADE'
+});
+User.hasOne(Referral, {
+    foreignKey: 'referredUserId',
+    as: 'referredBy',
+    onDelete: 'CASCADE'
+});
+Referral.belongsTo(User, {
+    foreignKey: 'referrerId',
+    as: 'referrer'
+});
+Referral.belongsTo(User, {
+    foreignKey: 'referredUserId',
+    as: 'referredUser'
+});
+
 // ==================== EXPORTS ====================
 
 module.exports = {
@@ -232,7 +257,9 @@ module.exports = {
     ProviderStats,
     Subscription,
     ProviderApplication,
-    Banner
+    Banner,
+    PlatformSetting,
+    Referral
 };
 
 
