@@ -240,6 +240,50 @@ Subscription.getExpiringSoon = async function () {
 };
 
 /**
+ * Add a number of bonus days to a provider's subscription.
+ *
+ * Used by referral rewards and admin grants. Behaviour:
+ *   - If a subscription exists and is still in the future, extend `endDate`.
+ *   - If it exists but has expired, restart from now and switch status to
+ *     "active".
+ *   - If none exists yet, create one (status "active", plan "trial",
+ *     price 0) starting today and ending in `days` days.
+ *
+ * Returns the updated subscription.
+ */
+Subscription.applyBonusDays = async function (providerId, days) {
+  if (!days || days <= 0) {
+    throw new Error("days must be a positive integer");
+  }
+
+  const now = new Date();
+  let sub = await this.findOne({ where: { providerId } });
+
+  if (!sub) {
+    const endDate = new Date(now);
+    endDate.setDate(endDate.getDate() + days);
+    sub = await this.create({
+      providerId,
+      status: "active",
+      plan: "trial",
+      price: 0,
+      startDate: now,
+      endDate,
+    });
+    return sub;
+  }
+
+  const baseDate = sub.endDate > now ? new Date(sub.endDate) : now;
+  baseDate.setDate(baseDate.getDate() + days);
+
+  sub.status = "active";
+  sub.endDate = baseDate;
+  sub.reminderSentAt = null;
+  await sub.save();
+  return sub;
+};
+
+/**
  * Mark reminder as sent
  */
 Subscription.markReminderSent = async function (subscriptionId) {

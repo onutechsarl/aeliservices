@@ -24,6 +24,8 @@ const {
   isOTPExpired,
 } = require("../utils/otp");
 const logger = require("../utils/logger");
+const referralReward = require("../services/referralReward");
+const { getSetting } = require("../utils/settings");
 const {
   handleFailedLogin,
   handleSuccessfulLogin,
@@ -108,7 +110,9 @@ const register = asyncHandler(async (req, res) => {
     isEmailVerified: false,
   });
 
-  // Record the referral as pending (rewarded on email verification by phase 3)
+  // Record the referral as pending. The bonus is applied later by the
+  // referralReward service; the exact moment depends on the platform setting
+  // `referral.requireEmailVerified` (default true → wait for OTP verification).
   if (referrer && referrer.id !== user.id) {
     try {
       await Referral.create({
@@ -117,6 +121,14 @@ const register = asyncHandler(async (req, res) => {
         codeUsed: referrer.referralCode,
         status: "pending",
       });
+
+      // If the gate is disabled, attempt the reward immediately.
+      const requireVerified = await getSetting('referral.requireEmailVerified', true);
+      if (!requireVerified) {
+        referralReward
+          .attemptReward(user.id, { req })
+          .catch((err) => logger.error('Referral reward failed', { error: err.message }));
+      }
     } catch (err) {
       logger.warn("Could not record referral", {
         referrerId: referrer.id,
@@ -221,6 +233,18 @@ const verifyOTPCode = asyncHandler(async (req, res) => {
     },
     "Welcome"
   );
+
+  // Trigger referral reward (best-effort, never blocks the response).
+  // The configured trigger gate is read inside attemptReward — when the
+  // platform setting `referral.requireEmailVerified` is true (default), the
+  // bonus is applied here. The function is idempotent and a no-op if there
+  // is no pending referral for this user.
+  const requireVerified = await getSetting('referral.requireEmailVerified', true);
+  if (requireVerified) {
+    referralReward
+      .attemptReward(user.id, { req })
+      .catch((err) => logger.error('Referral reward failed', { error: err.message }));
+  }
 
   i18nResponse(req, res, 200, "auth.otpVerified", {
     user: user.toPublicJSON(),

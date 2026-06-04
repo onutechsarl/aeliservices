@@ -859,6 +859,32 @@ const providerReactivatedEmail = ({ firstName, businessName }) => {
   };
 };
 
+/**
+ * Referral rewarded — sent to the referrer when a friend they invited has
+ * verified their email and the bonus has been applied.
+ */
+const referralRewardedEmail = ({ firstName, days, endDate }) => {
+  const formattedEnd = endDate ? new Date(endDate).toLocaleDateString('fr-FR') : '—';
+  return {
+    subject: `🎁 Vous avez gagné ${days} jours d'abonnement - AELI Services`,
+    html: baseTemplate(`
+      <h2>Bravo ${firstName} ! 🎉</h2>
+      <p>Un nouvel utilisateur vient de s'inscrire avec votre code de parrainage.</p>
+      <div class="highlight">
+        <p>Nous venons d'ajouter <strong>${days} jour${days > 1 ? 's' : ''}</strong> à votre abonnement.</p>
+      </div>
+      <div class="info-box">
+        <p><strong>Validité de votre abonnement :</strong> ${formattedEnd}</p>
+      </div>
+      <p>Continuez à partager votre code pour gagner encore plus de jours offerts !</p>
+      <p style="text-align: center; margin-top: 30px;">
+        <a href="${frontendUrl}/my-dashboard" class="button">Voir mon tableau de bord</a>
+      </p>
+      <p><em>L'équipe AELI Services</em></p>
+    `)
+  };
+};
+
 module.exports = {
   welcomeEmail,
   newContactEmail,
@@ -882,5 +908,6 @@ module.exports = {
   applicationReceivedEmail,
   providerVerificationRevokedEmail,
   providerDeactivatedEmail,
-  providerReactivatedEmail
+  providerReactivatedEmail,
+  referralRewardedEmail
 };

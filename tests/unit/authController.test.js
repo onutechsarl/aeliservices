@@ -97,6 +97,14 @@ jest.mock("../../src/middlewares/audit", () => ({
   },
 }));
 
+jest.mock("../../src/services/referralReward", () => ({
+  attemptReward: jest.fn(() => Promise.resolve({ status: 'noop' })),
+}));
+
+jest.mock("../../src/utils/settings", () => ({
+  getSetting: jest.fn(() => Promise.resolve(true)),
+}));
+
 const { User, Provider, RefreshToken } = require("../../src/models");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
