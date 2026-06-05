@@ -27,6 +27,7 @@ const {
     applyProviderValidation
 } = require('../validators/serviceValidator');
 const { cacheMiddleware } = require('../config/redis');
+const { validateUuidParam } = require('../middlewares/validateParams');
 
 // Public routes
 router.get('/', listProvidersValidation, validate, cacheMiddleware(600), getProviders);
@@ -53,12 +54,12 @@ router.get('/my-dashboard', restrictTo('provider'), getMyDashboard);
 // Legacy create route (keep for backwards compatibility, but now mainly done via application approval)
 router.post('/create', restrictTo('provider'), handleProviderCreationUpload, createProviderValidation, validate, createProvider);
 
-router.put('/:id', handleProviderLogoUpload, updateProviderValidation, validate, updateProvider);
-router.delete('/:id/photos/:photoIndex', deleteProviderPhoto);
+router.put('/:id', validateUuidParam('id'), handleProviderLogoUpload, updateProviderValidation, validate, updateProvider);
+router.delete('/:id/photos/:photoIndex', validateUuidParam('id'), deleteProviderPhoto);
 
 // Document routes (KYC verification)
-router.post('/:id/documents', handleDocumentUpload, uploadDocuments);
-router.get('/:id/documents', getDocuments);
-router.delete('/:id/documents/:docIndex', deleteDocument);
+router.post('/:id/documents', validateUuidParam('id'), handleDocumentUpload, uploadDocuments);
+router.get('/:id/documents', validateUuidParam('id'), getDocuments);
+router.delete('/:id/documents/:docIndex', validateUuidParam('id'), deleteDocument);
 
 module.exports = router;

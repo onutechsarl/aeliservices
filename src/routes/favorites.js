@@ -8,6 +8,7 @@ const {
 } = require('../controllers/favoriteController');
 const { protect } = require('../middlewares/auth');
 const { validate } = require('../middlewares/validation');
+const { validateUuidParam } = require('../middlewares/validateParams');
 const { body } = require('express-validator');
 
 // Validation
@@ -24,7 +25,7 @@ router.use(protect);
 
 router.post('/', addFavoriteValidation, validate, addFavorite);
 router.get('/', getFavorites);
-router.delete('/:providerId', removeFavorite);
-router.get('/check/:providerId', checkFavorite);
+router.delete('/:providerId', validateUuidParam('providerId'), removeFavorite);
+router.get('/check/:providerId', validateUuidParam('providerId'), checkFavorite);
 
 module.exports = router;

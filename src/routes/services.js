@@ -20,6 +20,7 @@ const {
     updateServiceValidation
 } = require('../validators/serviceValidator');
 const { handleServicePhotoUpload } = require('../middlewares/upload');
+const { validateUuidParam } = require('../middlewares/validateParams');
 
 // ============ CATEGORY ROUTES ============
 
@@ -28,19 +29,19 @@ router.get('/categories', getCategories);
 
 // Admin or Provider can create categories
 router.post('/categories', protect, restrictTo('admin', 'provider'), createCategoryValidation, validate, createCategory);
-router.put('/categories/:id', protect, restrictTo('admin'), updateCategory);
+router.put('/categories/:id', protect, restrictTo('admin'), validateUuidParam('id'), updateCategory);
 
 // ============ SERVICE ROUTES ============
 
 // Public
 router.get('/', getAllServicesGrouped);
-router.get('/provider/:providerId', getServicesByProvider);
-router.get('/provider/:providerId/categories', getCategoriesByProvider);
+router.get('/provider/:providerId', validateUuidParam('providerId'), getServicesByProvider);
+router.get('/provider/:providerId/categories', validateUuidParam('providerId'), getCategoriesByProvider);
 
 // Provider only
 router.post('/', protect, restrictTo('provider'), handleServicePhotoUpload, createServiceValidation, validate, createService);
-router.put('/:id', protect, handleServicePhotoUpload, updateServiceValidation, validate, updateService);
-router.delete('/:id', protect, deleteService);
-router.delete('/provider/category/:categoryId', protect, restrictTo('provider'), deleteProviderCategory);
+router.put('/:id', protect, validateUuidParam('id'), handleServicePhotoUpload, updateServiceValidation, validate, updateService);
+router.delete('/:id', protect, validateUuidParam('id'), deleteService);
+router.delete('/provider/category/:categoryId', protect, restrictTo('provider'), validateUuidParam('categoryId'), deleteProviderCategory);
 
 module.exports = router;

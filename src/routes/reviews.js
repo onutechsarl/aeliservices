@@ -8,6 +8,7 @@ const {
 } = require('../controllers/reviewController');
 const { protect } = require('../middlewares/auth');
 const { validate } = require('../middlewares/validation');
+const { validateUuidParam } = require('../middlewares/validateParams');
 const { body } = require('express-validator');
 
 // Review validation
@@ -40,11 +41,11 @@ const updateReviewValidation = [
 ];
 
 // Public routes
-router.get('/provider/:providerId', getProviderReviews);
+router.get('/provider/:providerId', validateUuidParam('providerId'), getProviderReviews);
 
 // Protected routes
 router.post('/', protect, reviewValidation, validate, createReview);
-router.put('/:id', protect, updateReviewValidation, validate, updateReview);
-router.delete('/:id', protect, deleteReview);
+router.put('/:id', protect, validateUuidParam('id'), updateReviewValidation, validate, updateReview);
+router.delete('/:id', protect, validateUuidParam('id'), deleteReview);
 
 module.exports = router;

@@ -7,10 +7,11 @@ const {
     checkProviderStatus
 } = require('../controllers/subscriptionController');
 const { protect, restrictTo } = require('../middlewares/auth');
+const { validateUuidParam } = require('../middlewares/validateParams');
 
 // Public routes
 router.get('/plans', getPlans);
-router.get('/provider/:providerId/status', checkProviderStatus);
+router.get('/provider/:providerId/status', validateUuidParam('providerId'), checkProviderStatus);
 
 // Protected routes (provider only)
 router.use(protect);

@@ -13,6 +13,7 @@ const {
 const { protect, optionalAuth, restrictTo } = require('../middlewares/auth');
 const { contactLimiter } = require('../middlewares/rateLimiter');
 const { validate } = require('../middlewares/validation');
+const { validateUuidParam } = require('../middlewares/validateParams');
 const { body } = require('express-validator');
 
 // Contact validation
@@ -50,15 +51,15 @@ router.post('/', contactLimiter, optionalAuth, contactValidation, validate, crea
 // Protected routes
 router.get('/received', protect, restrictTo('provider'), getReceivedContacts);
 router.get('/sent', protect, getSentContacts);
-router.put('/:id/status', protect, updateContactStatus);
+router.put('/:id/status', protect, validateUuidParam('id'), updateContactStatus);
 
 // Provider dashboard routes - daily stats
 router.get('/stats/daily', protect, restrictTo('provider'), getDailyContactStats);
 router.get('/by-date/:date', protect, restrictTo('provider'), getContactsByDate);
 
 // Contact unlock routes (pay-per-view)
-router.post('/:id/unlock', protect, restrictTo('provider'), initiateContactUnlock);
-router.post('/:id/unlock/confirm', protect, restrictTo('provider'), confirmContactUnlock);
+router.post('/:id/unlock', protect, restrictTo('provider'), validateUuidParam('id'), initiateContactUnlock);
+router.post('/:id/unlock/confirm', protect, restrictTo('provider'), validateUuidParam('id'), confirmContactUnlock);
 
 module.exports = router;
 
