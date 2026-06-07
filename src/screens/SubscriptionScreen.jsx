@@ -7,7 +7,7 @@ import { Subscription } from '../components/Subscription/Subscription';
  */
 export function SubscriptionScreen() {
     return (
-        <div >
+        <div className="p-4 sm:p-0">
             <Subscription />
             <ToastContainer position="bottom-center" />
         </div>

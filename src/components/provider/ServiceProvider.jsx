@@ -173,8 +173,11 @@ export function ServiceProvider({ mode, dataConsult, slug, setModelinkslug }) {
             return;
         }
 
+        const resolvedProvider = provider || dataConsult;
+        if (!resolvedProvider?.id) return;
+
         const payload = {
-            ...provider,
+            ...resolvedProvider,
             selectedService: service
         };
 

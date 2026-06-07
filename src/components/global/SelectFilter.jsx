@@ -58,7 +58,7 @@ export const SelectFilter = ({
             </Button>
 
             {isOpen && (
-                <div className="absolute left-0 md:right-0 mt-2 min-w-full bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 min-w-full bg-white border border-gray-100 rounded-2xl shadow-xl z-50">
                     {options.length > 4 && (
                         <div className="p-2 border-b border-gray-100">
                             <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg">
@@ -74,7 +74,7 @@ export const SelectFilter = ({
                             </div>
                         </div>
                     )}
-                    <div className="p-1.5 flex flex-col gap-0.5 max-h-[250px] overflow-y-auto">
+                    <div className="p-1.5 flex flex-col gap-0.5 max-h-[250px] overflow-y-auto no-scrollbar">
                         {!searchQuery && (
                             <>
                                 <Button

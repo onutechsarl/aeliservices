@@ -57,6 +57,7 @@ export function ContactCustomer({ closeContact, dataContact }) {
    */
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!formData.providerId) return;
     mutateContact(formData);
   };
 

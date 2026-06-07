@@ -199,7 +199,7 @@ export function Sidebar({ isOpenSidebar, showStats, onOpenMessage, onOpenFavorit
           </Button>
         </div>
 
-        <nav className="flex-1 flex flex-col gap-4 w-full px-4 overflow-y-auto min-h-0">
+        <nav className="flex-1 flex flex-col gap-4 w-full px-4 overflow-y-auto min-h-0 no-scrollbar">
           {navLinks.slice(0, 2).map((link) => {
             const isActive = location.pathname === link.path
             return (

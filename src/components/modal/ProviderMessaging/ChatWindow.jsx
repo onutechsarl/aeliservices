@@ -55,7 +55,7 @@ export function ChatWindow({ chat, onBack }) {
 
     useEffect(() => {
         if (isSuccessUpdateStatus && dataUpdateStatus?.success || isSuccessUnlock && dataUnlock?.success) {
-            toast.success(dataUpdateStatus.message || dataUnlock.message);
+            toast.success(dataUpdateStatus?.message || dataUnlock?.message);
 
             if (dataUnlock?.data?.paymentUrl) {
                 window.location.href = dataUnlock.data.paymentUrl;
