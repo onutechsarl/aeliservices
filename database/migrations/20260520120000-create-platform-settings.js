@@ -59,71 +59,96 @@ const DEFAULT_SETTINGS = [
 
 module.exports = {
     async up(queryInterface, Sequelize) {
-        await queryInterface.createTable('platform_settings', {
-            id: {
-                type: Sequelize.UUID,
-                defaultValue: Sequelize.UUIDV4,
-                primaryKey: true,
-                allowNull: false
-            },
-            key: {
-                type: Sequelize.STRING(120),
-                allowNull: false,
-                unique: true
-            },
-            value: {
-                type: Sequelize.STRING(500),
-                allowNull: false
-            },
-            value_type: {
-                type: Sequelize.ENUM('int', 'float', 'bool', 'string', 'json'),
-                allowNull: false
-            },
-            default_value: {
-                type: Sequelize.STRING(500),
-                allowNull: false
-            },
-            description: {
-                type: Sequelize.STRING(500),
-                allowNull: true
-            },
-            min_value: {
-                type: Sequelize.STRING(120),
-                allowNull: true
-            },
-            max_value: {
-                type: Sequelize.STRING(120),
-                allowNull: true
-            },
-            created_at: {
-                type: Sequelize.DATE,
-                allowNull: false,
-                defaultValue: Sequelize.fn('NOW')
-            },
-            updated_at: {
-                type: Sequelize.DATE,
-                allowNull: false,
-                defaultValue: Sequelize.fn('NOW')
-            }
-        });
+        // Idempotent: only create the table if it does not exist yet (allows
+        // retrying the migration after a partial failure).
+        let tableExists = false;
+        try {
+            await queryInterface.describeTable('platform_settings');
+            tableExists = true;
+        } catch (_) {
+            tableExists = false;
+        }
+
+        if (!tableExists) {
+            await queryInterface.createTable('platform_settings', {
+                id: {
+                    type: Sequelize.UUID,
+                    defaultValue: Sequelize.UUIDV4,
+                    primaryKey: true,
+                    allowNull: false
+                },
+                key: {
+                    type: Sequelize.STRING(120),
+                    allowNull: false,
+                    unique: true
+                },
+                value: {
+                    type: Sequelize.STRING(500),
+                    allowNull: false
+                },
+                value_type: {
+                    type: Sequelize.ENUM('int', 'float', 'bool', 'string', 'json'),
+                    allowNull: false
+                },
+                default_value: {
+                    type: Sequelize.STRING(500),
+                    allowNull: false
+                },
+                description: {
+                    type: Sequelize.STRING(500),
+                    allowNull: true
+                },
+                min_value: {
+                    type: Sequelize.STRING(120),
+                    allowNull: true
+                },
+                max_value: {
+                    type: Sequelize.STRING(120),
+                    allowNull: true
+                },
+                created_at: {
+                    type: Sequelize.DATE,
+                    allowNull: false,
+                    defaultValue: Sequelize.fn('NOW')
+                },
+                updated_at: {
+                    type: Sequelize.DATE,
+                    allowNull: false,
+                    defaultValue: Sequelize.fn('NOW')
+                }
+            });
+        }
 
         await queryInterface.addIndex('platform_settings', ['key'], {
             unique: true,
             name: 'platform_settings_key_unique'
         }).catch(() => null);
 
-        // Seed defaults — idempotent on key conflicts
-        const now = new Date();
+        // Seed defaults via raw SQL with ON CONFLICT DO NOTHING. We use
+        // explicit snake_case column names because bulkInsert does NOT
+        // translate camelCase -> snake_case (only Model.create() does).
         const { randomUUID } = require('crypto');
-        const rows = DEFAULT_SETTINGS.map((s) => ({
-            id: randomUUID(),
-            ...s,
-            created_at: now,
-            updated_at: now
-        }));
-        await queryInterface.bulkInsert('platform_settings', rows, {
-            ignoreDuplicates: true
-        });
+        for (const s of DEFAULT_SETTINGS) {
+            await queryInterface.sequelize.query(
+                `INSERT INTO platform_settings
+                    (id, key, value, value_type, default_value, description, min_value, max_value, created_at, updated_at)
+                 VALUES
+                    (:id, :key, :value, :valueType, :defaultValue, :description, :minValue, :maxValue, NOW(), NOW())
+                 ON CONFLICT (key) DO NOTHING;`,
+                {
+                    replacements: {
+                        id: randomUUID(),
+                        key: s.key,
+                        value: s.value,
+                        valueType: s.valueType,
+                        defaultValue: s.defaultValue,
+                        description: s.description ?? null,
+                        minValue: s.minValue ?? null,
+                        maxValue: s.maxValue ?? null
+                    }
+                }
+            );
+        }
     },
 
     async down(queryInterface) {

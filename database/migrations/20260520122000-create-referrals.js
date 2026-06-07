@@ -2,6 +2,17 @@
 
 module.exports = {
     async up(queryInterface, Sequelize) {
+        // Idempotent: skip if already created (allows retrying the migration
+        // after a partial failure).
+        let tableExists = false;
+        try {
+            await queryInterface.describeTable('referrals');
+            tableExists = true;
+        } catch (_) {
+            tableExists = false;
+        }
+        if (tableExists) return;
+
         await queryInterface.createTable('referrals', {
             id: {
                 type: Sequelize.UUID,
