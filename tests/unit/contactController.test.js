@@ -80,14 +80,21 @@ jest.mock('../../src/config/socket', () => ({
 }));
 
 jest.mock('../../src/utils/paymentGateway', () => ({
-    initializeCinetPayPayment: jest.fn()
+    initializeCinetPayPayment: jest.fn(),
+    initializeNotchPayPayment: jest.fn()
+}));
+
+jest.mock('../../src/config/notchpay', () => ({
+    NOTCH_PAY_CONFIG: {
+        callbackUrl: 'https://test.aeli.cm/payment/callback'
+    }
 }));
 
 const { Contact, Provider, User, Payment, Subscription } = require('../../src/models');
 const { i18nResponse, getPaginationParams, getPaginationData } = require('../../src/utils/helpers');
 const { sendEmail } = require('../../src/config/email');
 const { emitNewContact, emitContactStatusChange } = require('../../src/config/socket');
-const { initializeCinetPayPayment } = require('../../src/utils/paymentGateway');
+const { initializeCinetPayPayment, initializeNotchPayPayment } = require('../../src/utils/paymentGateway');
 
 describe('Contact Controller', () => {
     let mockReq, mockRes, mockNext;
@@ -428,7 +435,7 @@ describe('Contact Controller', () => {
     });
 
     describe('initiateContactUnlock', () => {
-        it('should initiate contact unlock successfully', async () => {
+        it('should initiate contact unlock successfully via NotchPay', async () => {
             mockReq.params = { id: 'contact-123' };
 
             const mockContact = {
@@ -441,21 +448,56 @@ describe('Contact Controller', () => {
             const mockPayment = {
                 id: 'payment-123',
                 transactionId: 'txn-123',
+                amount: 500,
+                currency: 'XAF',
+                description: 'Débloquer message de John Doe',
+                status: 'PENDING',
                 save: jest.fn().mockResolvedValue()
             };
 
             Contact.findByPk.mockResolvedValue(mockContact);
+            User.findByPk.mockResolvedValue({ email: 'provider@aeli.cm' });
             Payment.create.mockResolvedValue(mockPayment);
-            initializeCinetPayPayment.mockResolvedValue({
-                data: { payment_url: 'http://pay.com', payment_token: 'token' }
+            initializeNotchPayPayment.mockResolvedValue({
+                status: 'Accepted',
+                authorization_url: 'https://pay.notchpay.co/AELI123'
             });
 
             await initiateContactUnlock(mockReq, mockRes, mockNext);
 
             expect(Contact.findByPk).toHaveBeenCalledWith('contact-123', expect.any(Object));
             expect(Payment.create).toHaveBeenCalled();
-            expect(initializeCinetPayPayment).toHaveBeenCalled();
-            expect(i18nResponse).toHaveBeenCalledWith(mockReq, mockRes, 200, 'payment.initialized', expect.any(Object));
+            expect(initializeNotchPayPayment).toHaveBeenCalledWith(expect.objectContaining({
+                email: 'provider@aeli.cm',
+                amount: 500,
+                currency: 'XAF',
+                reference: 'txn-123'
+            }));
+            expect(i18nResponse).toHaveBeenCalledWith(mockReq, mockRes, 200, 'payment.initialized', expect.objectContaining({
+                paymentUrl: 'https://pay.notchpay.co/AELI123',
+                gateway: 'NotchPay'
+            }));
+        });
+
+        it('should return a 502 when NotchPay is unreachable', async () => {
+            mockReq.params = { id: 'contact-123' };
+
+            Contact.findByPk.mockResolvedValue({
+                id: 'contact-123',
+                provider: { userId: 'user-123' },
+                senderName: 'John Doe',
+                canBeViewedBy: jest.fn().mockResolvedValue(false)
+            });
+            User.findByPk.mockResolvedValue({ email: 'provider@aeli.cm' });
+            Payment.create.mockResolvedValue({
+                id: 'payment-123', transactionId: 'txn-123',
+                amount: 500, currency: 'XAF', description: 'x',
+                status: 'PENDING', save: jest.fn().mockResolvedValue()
+            });
+            initializeNotchPayPayment.mockRejectedValue(new Error('ECONNREFUSED'));
+
+            await expect(initiateContactUnlock(mockReq, mockRes, mockNext))
+                .rejects.toMatchObject({ statusCode: 502 });
         });
 
         it('should throw error if contact already unlocked', async () => {

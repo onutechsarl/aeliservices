@@ -121,7 +121,8 @@
     "pending": "Payment pending",
     "history": "Payment history",
     "status": "Payment status",
-    "notConfirmed": "Payment not confirmed"
+    "notConfirmed": "Payment not confirmed",
+    "gatewayUnavailable": "The payment service is temporarily unavailable, please try again in a few minutes."
   },
   "subscription": {
     "alreadyActive": "You already have an active subscription. It is not possible to initiate a new payment at this time.",

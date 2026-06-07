@@ -343,7 +343,8 @@ const getContactsByDate = asyncHandler(async (req, res) => {
 const initiateContactUnlock = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { Payment } = require("../models");
-  const { initializeCinetPayPayment } = require("../utils/paymentGateway");
+  const { initializeNotchPayPayment } = require("../utils/paymentGateway");
+  const { NOTCH_PAY_CONFIG } = require("../config/notchpay");
 
   const contact = await Contact.findByPk(id, {
     include: [{ model: Provider, as: "provider" }],
@@ -364,7 +365,11 @@ const initiateContactUnlock = asyncHandler(async (req, res) => {
     throw new AppError(req.t("contact.alreadyUnlocked"), 400);
   }
 
-  // Create payment 500 FCFA
+  // NotchPay needs an email for the payer — use the provider's user account.
+  const user = await User.findByPk(req.user.id, { attributes: ["email"] });
+  const payerEmail = user?.email;
+
+  // Create payment 500 FCFA (gateway = NotchPay, like subscriptions)
   const transactionId = Payment.generateTransactionId();
   const payment = await Payment.create({
     transactionId,
@@ -373,7 +378,9 @@ const initiateContactUnlock = asyncHandler(async (req, res) => {
     amount: 500,
     currency: "XAF",
     type: "contact_unlock",
-    description: `Débloquage message de ${contact.senderName}`,
+    description: `Débloquer message de ${contact.senderName}`,
+    gateway: "NotchPay",
+    status: "PENDING",
     metadata: {
       contactId: contact.id,
       providerId: contact.providerId,
@@ -381,27 +388,54 @@ const initiateContactUnlock = asyncHandler(async (req, res) => {
     },
   });
 
-  // Initialize CinetPay payment
-  const cinetpayResponse = await initializeCinetPayPayment({
-    transactionId: payment.transactionId,
-    amount: 500,
-    description: `Débloquer message de ${contact.senderName}`,
-    returnUrl: `${getFrontendUrl()}/provider/contacts/unlock-success`,
-    notifyUrl: `${process.env.API_URL}/api/contacts/${id}/unlock/callback`,
-  });
+  try {
+    const notchpayResponse = await initializeNotchPayPayment({
+      email: payerEmail,
+      amount: payment.amount,
+      currency: payment.currency,
+      description: payment.description,
+      reference: payment.transactionId,
+      callback: NOTCH_PAY_CONFIG.callbackUrl,
+    });
 
-  // Update payment with CinetPay data
-  payment.paymentUrl = cinetpayResponse.data.payment_url;
-  payment.paymentToken = cinetpayResponse.data.payment_token;
-  payment.status = "PENDING";
-  await payment.save();
+    if (
+      notchpayResponse.status === "Accepted" ||
+      notchpayResponse.authorization_url
+    ) {
+      payment.paymentUrl = notchpayResponse.authorization_url;
+      await payment.save();
 
-  i18nResponse(req, res, 200, "payment.initialized", {
-    paymentUrl: cinetpayResponse.data.payment_url,
-    paymentId: payment.id,
-    transactionId: payment.transactionId,
-    amount: 500,
-  });
+      return i18nResponse(req, res, 200, "payment.initialized", {
+        paymentUrl: payment.paymentUrl,
+        paymentId: payment.id,
+        transactionId: payment.transactionId,
+        amount: 500,
+        gateway: "NotchPay",
+      });
+    }
+
+    // NotchPay answered but refused the payment init.
+    payment.status = "REFUSED";
+    payment.errorMessage = notchpayResponse.message || "NotchPay refused init";
+    await payment.save();
+    throw new AppError(req.t("payment.failed"), 400);
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+
+    // Network or 5xx from NotchPay — keep the Payment row to keep an audit
+    // trail, but surface a clean 502 instead of crashing in 500.
+    if (payment.status === "PENDING") {
+      payment.status = "REFUSED";
+      payment.errorMessage = err.response?.data?.message || err.message;
+      await payment.save().catch(() => null);
+    }
+    logger.error("NotchPay contact-unlock init failed", {
+      paymentId: payment.id,
+      contactId: contact.id,
+      error: err.response?.data || err.message,
+    });
+    throw new AppError(req.t("payment.gatewayUnavailable"), 502);
+  }
 });
 
 /**

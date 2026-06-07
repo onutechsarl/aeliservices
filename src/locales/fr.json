@@ -132,7 +132,8 @@
     "pending": "Paiement en attente",
     "history": "Historique des paiements",
     "status": "Statut du paiement",
-    "notConfirmed": "Le paiement n'a pas été confirmé"
+    "notConfirmed": "Le paiement n'a pas été confirmé",
+    "gatewayUnavailable": "Le service de paiement est temporairement indisponible, veuillez réessayer dans quelques minutes."
   },
   "subscription": {
     "alreadyActive": "Vous avez déjà un abonnement actif. Il n'est pas possible d'initier un nouveau paiement pour le moment.",
