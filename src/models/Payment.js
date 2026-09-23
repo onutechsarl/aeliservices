@@ -195,7 +195,7 @@ Payment.prototype.updateFromCinetPay = async function (cinetpayData) {
 /**
  * Update payment status from NotchPay response/webhook
  */
-Payment.prototype.updateFromNotchPay = async function (notchpayData) {
+Payment.prototype.updateFromNotchPay = async function (notchpayData, options = {}) {
     const { NOTCH_PAY_STATUS } = require('../config/notchpay');
 
     this.status = NOTCH_PAY_STATUS[notchpayData.status] || this.status;
@@ -206,8 +206,32 @@ Payment.prototype.updateFromNotchPay = async function (notchpayData) {
         this.paidAt = notchpayData.completed_at ? new Date(notchpayData.completed_at) : new Date();
     }
 
-    await this.save();
+    await this.save(options);
     return this;
+};
+
+/**
+ * Verify that the amount/currency reported by the gateway matches what was
+ * recorded when the payment was initialized. Returns { ok, message }.
+ *
+ * The gateway payload is attacker-influenced on the wire (before signature
+ * verification) and, more importantly, protects against a mis-configured or
+ * tampered checkout: we never activate a subscription that was paid for a
+ * different amount. Fields absent from the payload are not checked.
+ */
+Payment.prototype.matchesGatewayAmount = function (gatewayData = {}) {
+    if (gatewayData.amount !== undefined && gatewayData.amount !== null) {
+        const reported = Number(gatewayData.amount);
+        if (!Number.isFinite(reported) || reported !== Number(this.amount)) {
+            return { ok: false, message: `amount mismatch (expected ${this.amount}, got ${gatewayData.amount})` };
+        }
+    }
+    if (gatewayData.currency) {
+        if (String(gatewayData.currency).toUpperCase() !== String(this.currency).toUpperCase()) {
+            return { ok: false, message: `currency mismatch (expected ${this.currency}, got ${gatewayData.currency})` };
+        }
+    }
+    return { ok: true };
 };
 
 module.exports = Payment;

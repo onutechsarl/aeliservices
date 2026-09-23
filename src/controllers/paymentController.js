@@ -434,12 +434,47 @@ const handleNotchPayWebhook = asyncHandler(async (req, res) => {
     return res.status(200).send("OK");
   }
 
-  // Update payment
-  await payment.updateFromNotchPay(event.data);
+  // Revalidate the amount/currency against what we recorded at init time.
+  const amountCheck = payment.matchesGatewayAmount(event.data);
+  if (!amountCheck.ok) {
+    logger.error(
+      `NotchPay webhook amount mismatch for ${transactionId}: ${amountCheck.message}`,
+    );
+    return res.status(400).send("Amount mismatch");
+  }
 
-  if (payment.status === "ACCEPTED") {
+  // Atomically claim the payment so the business logic runs exactly once,
+  // even if the webhook and a status poll arrive concurrently. The row is
+  // locked and re-read inside the transaction; only the caller that flips it
+  // out of a non-final state runs the side effects afterwards.
+  const { withTransaction } = require("../utils/dbHelpers");
+  let becameAccepted = false;
+  let becameRefused = false;
+
+  await withTransaction(async (t) => {
+    const fresh = await Payment.findByPk(payment.id, {
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (
+      !fresh ||
+      fresh.status === "ACCEPTED" ||
+      fresh.status === "REFUSED"
+    ) {
+      return; // already finalized by a concurrent request
+    }
+
+    await fresh.updateFromNotchPay(event.data, { transaction: t });
+    becameAccepted = fresh.status === "ACCEPTED";
+    becameRefused = fresh.status === "REFUSED";
+    // keep the outer reference in sync for the side effects below
+    payment.status = fresh.status;
+    payment.errorMessage = fresh.errorMessage;
+  });
+
+  if (becameAccepted) {
     await processPaymentSuccess(payment);
-  } else if (payment.status === "REFUSED") {
+  } else if (becameRefused) {
     await processPaymentFailure(payment, payment.errorMessage);
   }
 

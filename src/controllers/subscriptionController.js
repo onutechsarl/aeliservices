@@ -207,14 +207,19 @@ const subscribe = asyncHandler(async (req, res) => {
 const activateSubscription = async (payment) => {
   if (payment.type === "subscription" && payment.metadata?.plan) {
     const { plan } = payment.metadata;
+    const { withTransaction } = require("../utils/dbHelpers");
 
-    await Subscription.renewSubscription(payment.providerId, plan, payment.id);
+    // Subscription renewal and provider visibility must move together.
+    await withTransaction(async (t) => {
+      await Subscription.renewSubscription(payment.providerId, plan, payment.id, {
+        transaction: t,
+      });
 
-    // Update provider visibility
-    await Provider.update(
-      { isVisible: true },
-      { where: { id: payment.providerId } },
-    );
+      await Provider.update(
+        { isVisible: true },
+        { where: { id: payment.providerId }, transaction: t },
+      );
+    });
   }
 };
 

@@ -109,13 +109,15 @@ Subscription.renewSubscription = async function (
   providerId,
   plan,
   paymentId = null,
+  options = {},
 ) {
   const planConfig = this.PLANS[plan];
   if (!planConfig || plan === "trial") {
     throw new Error("Plan invalide");
   }
 
-  const existing = await this.findOne({ where: { providerId } });
+  const { transaction } = options;
+  const existing = await this.findOne({ where: { providerId }, transaction });
 
   if (!existing) {
     throw new Error("Aucun abonnement trouvé pour ce prestataire");
@@ -137,7 +139,7 @@ Subscription.renewSubscription = async function (
   existing.endDate = endDate;
   existing.paymentId = paymentId;
   existing.reminderSentAt = null;
-  await existing.save();
+  await existing.save({ transaction });
 
   return existing;
 };
