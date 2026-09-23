@@ -134,6 +134,24 @@ const otpResendLimiter = rateLimit({
 });
 
 /**
+ * Rate limiter for account registration.
+ * Deliberately generous (default 20/hour/IP) so it never blocks legitimate
+ * sign-ups, while still stopping bulk account creation and OTP-email abuse
+ * against third-party addresses. Tunable via REGISTER_RATE_LIMIT_MAX.
+ */
+const registerLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: parseInt(process.env.REGISTER_RATE_LIMIT_MAX) || 20,
+    message: {
+        success: false,
+        message: 'Trop de tentatives d\'inscription. Veuillez réessayer plus tard.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: getStore('register')
+});
+
+/**
  * Strict rate limiter for sensitive operations
  * 10 requests per hour
  */
@@ -156,5 +174,6 @@ module.exports = {
     contactLimiter,
     otpLimiter,
     otpResendLimiter,
-    strictLimiter
+    strictLimiter,
+    registerLimiter
 };

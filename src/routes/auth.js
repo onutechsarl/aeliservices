@@ -19,7 +19,8 @@ const {
     loginLimiter,
     passwordResetLimiter,
     otpLimiter,
-    otpResendLimiter
+    otpResendLimiter,
+    registerLimiter
 } = require('../middlewares/rateLimiter');
 const {
     registerValidation,
@@ -46,7 +47,7 @@ const refreshTokenValidation = [
 // ============ PUBLIC ROUTES ============
 
 // Registration & OTP
-router.post('/register', registerValidation, validate, register);
+router.post('/register', registerLimiter, registerValidation, validate, register);
 router.post('/verify-otp', otpLimiter, otpValidation, validate, verifyOTPCode);
 router.post('/resend-otp', otpResendLimiter, resendOtpValidation, validate, resendOTP);
 
