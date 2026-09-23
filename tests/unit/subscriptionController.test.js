@@ -50,6 +50,10 @@ jest.mock("../../src/middlewares/errorHandler", () => ({
   },
 }));
 
+jest.mock("../../src/utils/dbHelpers", () => ({
+  withTransaction: (cb) => cb({}),
+}));
+
 jest.mock("../../src/utils/helpers", () => ({
   i18nResponse: jest.fn(),
   sendEmailSafely: jest.fn(),
@@ -295,10 +299,11 @@ describe("Subscription Controller", () => {
         "provider-123",
         "monthly",
         undefined,
+        expect.objectContaining({ transaction: expect.anything() }),
       );
       expect(Provider.update).toHaveBeenCalledWith(
         { isVisible: true },
-        { where: { id: "provider-123" } },
+        expect.objectContaining({ where: { id: "provider-123" } }),
       );
     });
 
