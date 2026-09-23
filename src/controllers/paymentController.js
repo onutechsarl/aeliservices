@@ -613,33 +613,15 @@ const checkPaymentStatus = asyncHandler(async (req, res) => {
     throw new AppError(req.t("payment.notFound"), 404);
   }
 
-  // If pending, check with CinetPay
-  if (payment.status === "PENDING" || payment.status === "WAITING_CUSTOMER") {
-    try {
-      const response = await axios.post(
-        CINETPAY_CONFIG.checkUrl,
-        {
-          apikey: CINETPAY_CONFIG.apiKey,
-          site_id: CINETPAY_CONFIG.siteId,
-          transaction_id: transactionId,
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-
-      if (response.data.code === "00") {
-        await payment.updateFromCinetPay(response.data.data);
-
-        if (response.data.data.status === "ACCEPTED") {
-          await processPaymentSuccess(payment);
-        }
-      }
-    } catch (error) {
-      logger.error(`Error checking payment status: ${error.message}`);
-    }
+  // Only the payer (or an admin) may read a payment's status.
+  const isAdmin = req.user?.role === "admin";
+  if (!isAdmin && payment.userId !== req.user?.id) {
+    throw new AppError(req.t("common.forbidden"), 403);
   }
 
+  // Read-only: the payment status is set authoritatively by the signed
+  // gateway webhook. This endpoint never contacts the gateway and never
+  // triggers activation — that removes the previous public side effect.
   i18nResponse(req, res, 200, "payment.status", {
     transactionId: payment.transactionId,
     status: payment.status,

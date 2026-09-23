@@ -114,7 +114,7 @@ router.post('/webhook', handleWebhook);
  *     summary: Check payment status
  *     tags: [Payments]
  */
-router.get('/:transactionId/status', checkPaymentStatus);
+router.get('/:transactionId/status', protect, checkPaymentStatus);
 
 /**
  * @swagger
