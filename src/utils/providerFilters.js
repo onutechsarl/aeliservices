@@ -42,8 +42,12 @@ const providerIdsMatchingServiceText = (pattern) => {
 
 /** Providers having at least one active service inside the price range. */
 const providerIdsInPriceRange = (minPrice, maxPrice) => {
-    const min = Number.isFinite(Number(minPrice)) ? Number(minPrice) : 0;
-    const max = Number.isFinite(Number(maxPrice)) ? Number(maxPrice) : 999999999;
+    // parseFloat mirrors the original behaviour; the result is coerced to a
+    // finite Number before it reaches SQL, so no raw text is ever injected.
+    const parsedMin = parseFloat(minPrice);
+    const parsedMax = parseFloat(maxPrice);
+    const min = Number.isFinite(parsedMin) ? parsedMin : 0;
+    const max = Number.isFinite(parsedMax) ? parsedMax : 999999999;
     return literal(
         `(SELECT DISTINCT provider_id FROM services WHERE price >= ${min} AND price <= ${max} AND is_active = true)`
     );
