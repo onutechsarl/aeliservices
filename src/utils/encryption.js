@@ -71,24 +71,22 @@ const encrypt = (text) => {
  * @param {string} encryptedText - Encrypted text (iv:authTag:ciphertext)
  * @returns {string} Decrypted plain text
  */
-const decrypt = (encryptedText) => {
+const decrypt = (encryptedText, options = {}) => {
+    const { strict = false } = options;
+
     if (!encryptedText || typeof encryptedText !== 'string') {
         return encryptedText;
     }
 
-    // Check if it's actually encrypted (contains the separator pattern)
-    if (!encryptedText.includes(':')) {
-        return encryptedText; // Return as-is if not encrypted
+    // Values that are not in our encrypted format are legacy plaintext and are
+    // returned unchanged (e.g. a phone stored before encryption was added).
+    if (!isEncrypted(encryptedText)) {
+        return encryptedText;
     }
 
     try {
         const key = getEncryptionKey();
         const parts = encryptedText.split(':');
-
-        if (parts.length !== 3) {
-            return encryptedText; // Not in expected format, return as-is
-        }
-
         const iv = Buffer.from(parts[0], ENCODING);
         const authTag = Buffer.from(parts[1], ENCODING);
         const encrypted = parts[2];
@@ -101,12 +99,17 @@ const decrypt = (encryptedText) => {
 
         return decrypted;
     } catch (error) {
-        logger.error('Decryption error:', {
-            error: error.message,
-            stack: error.stack
+        // The value *is* in encrypted format but failed authentication: this is
+        // real corruption, tampering, or a wrong ENCRYPTION_KEY. Never return
+        // the raw ciphertext (it would leak hex to the client). Fail explicitly
+        // in strict mode; otherwise surface null so callers don't expose it.
+        logger.error('Decryption failed for an encrypted-format value:', {
+            error: error.message
         });
-        // Return original if decryption fails (might be plain text)
-        return encryptedText;
+        if (strict) {
+            throw new Error('Failed to decrypt data');
+        }
+        return null;
     }
 };
 
@@ -122,8 +125,15 @@ const createBlindIndex = (text) => {
     }
 
     try {
-        const key = getEncryptionKey();
-        const hmac = crypto.createHmac('sha256', key);
+        // Domain-separate the blind-index key from the AES key so the two uses
+        // never share the same secret. (No blind indexes are persisted yet, so
+        // changing this derivation breaks nothing.)
+        const masterKey = getEncryptionKey();
+        const indexKey = crypto
+            .createHmac('sha256', masterKey)
+            .update('aeli-blind-index-key-v1')
+            .digest();
+        const hmac = crypto.createHmac('sha256', indexKey);
         hmac.update(text.toLowerCase().trim());
         return hmac.digest('hex');
     } catch (error) {
@@ -168,11 +178,16 @@ const encryptIfNeeded = (value) => {
 };
 
 /**
- * Generate a random encryption key (for setup)
- * @returns {string} 32-character random key
+ * Generate a random 32-character encryption key (for setup).
+ *
+ * Uses base64url of 24 random bytes, which is exactly 32 characters and
+ * carries 192 bits of entropy — as opposed to the previous hex-of-16-bytes
+ * (32 chars but only 128 bits). Note: the key is used directly as the AES-256
+ * key, so its byte length caps the effective strength; treat this as a
+ * high-entropy secret and rotate it via a re-encryption migration if raised.
  */
 const generateEncryptionKey = () => {
-    return crypto.randomBytes(16).toString('hex');
+    return crypto.randomBytes(24).toString('base64url');
 };
 
 module.exports = {
