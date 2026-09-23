@@ -19,6 +19,12 @@ const {
   extractPhotoUrls,
   sendEmailSafely,
 } = require("../utils/helpers");
+const {
+  buildSearchPattern,
+  providerIdsMatchingServiceText,
+  providerIdsInPriceRange,
+  buildCategoryFilter,
+} = require("../utils/providerFilters");
 const { deleteImage, getPublicIdFromUrl } = require("../config/cloudinary");
 const cache = require("../config/redis");
 const { t } = require("../middlewares/i18n");
@@ -117,33 +123,20 @@ const getProviders = asyncHandler(async (req, res) => {
     where.averageRating = { [Op.gte]: parseFloat(minRating) };
   }
 
-  if (search) {
-    const searchPattern = `%${search}%`;
+  const searchPattern = buildSearchPattern(search);
+  if (searchPattern) {
     where[Op.or] = [
       { businessName: { [Op.iLike]: searchPattern } },
       { description: { [Op.iLike]: searchPattern } },
-      {
-        id: {
-          [Op.in]: literal(
-            `(SELECT DISTINCT provider_id FROM services WHERE name ILIKE '${searchPattern}' OR description ILIKE '${searchPattern}')`,
-          ),
-        },
-      },
+      { id: { [Op.in]: providerIdsMatchingServiceText(searchPattern) } },
     ];
   }
 
   // Price Range Filter
   if (minPrice || maxPrice) {
-    const minP = parseFloat(minPrice) || 0;
-    const maxP = parseFloat(maxPrice) || 999999999;
-
     where[Op.and] = where[Op.and] || [];
     where[Op.and].push({
-      id: {
-        [Op.in]: literal(
-          `(SELECT DISTINCT provider_id FROM services WHERE price >= ${minP} AND price <= ${maxP} AND is_active = true)`,
-        ),
-      },
+      id: { [Op.in]: providerIdsInPriceRange(minPrice, maxPrice) },
     });
   }
 
@@ -172,17 +165,16 @@ const getProviders = asyncHandler(async (req, res) => {
 
   // If category filter, add where condition
   // Support both categoryId (UUID) and category (slug)
-  if (categoryId || category) {
+  const categoryFilter = buildCategoryFilter({ categoryId, category });
+  if (!categoryFilter.ok) {
+    throw new AppError(
+      `Paramètre "${categoryFilter.param}" invalide.`,
+      400,
+    );
+  }
+  if (categoryFilter.subquery) {
     where[Op.and] = where[Op.and] || [];
-    where[Op.and].push({
-      id: {
-        [Op.in]: literal(
-          categoryId
-            ? `(SELECT DISTINCT provider_id FROM services WHERE category_id = '${categoryId}')`
-            : `(SELECT DISTINCT provider_id FROM services WHERE category_id = (SELECT id FROM categories WHERE slug = '${category}'))`,
-        ),
-      },
-    });
+    where[Op.and].push({ id: { [Op.in]: categoryFilter.subquery } });
   }
 
   const { count, rows: providersObj } = await Provider.findAndCountAll({
