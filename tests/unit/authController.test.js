@@ -533,6 +533,10 @@ describe("Auth Controller", () => {
       };
 
       RefreshToken.findByRawToken.mockResolvedValue(mockTokenRecord);
+      RefreshToken.issue.mockResolvedValue({
+        raw: "new-refresh-token",
+        record: {},
+      });
 
       await refreshAccessToken(mockReq, mockRes, mockNext);
 
