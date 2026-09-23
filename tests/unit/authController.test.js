@@ -199,20 +199,22 @@ describe("Auth Controller", () => {
       expect(User.findOne).toHaveBeenCalledWith({
         where: { email: userData.email },
       });
-      expect(User.create).toHaveBeenCalledWith({
-        email: userData.email,
-        password: userData.password,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        phone: userData.phone,
-        country: "Cameroun",
-        gender: "male",
-        role: "client",
-        isEmailVerified: false,
-      });
-      expect(mockUser.save).toHaveBeenCalledWith({
-        fields: ["otpCode", "otpExpires", "otpAttempts"],
-      });
+      // The user is now created in a single INSERT with the OTP fields
+      // included (no separate save that could fail after creation).
+      expect(User.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: userData.email,
+          password: userData.password,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          phone: userData.phone,
+          country: "Cameroun",
+          gender: "male",
+          role: "client",
+          isEmailVerified: false,
+          otpAttempts: 0,
+        })
+      );
       expect(i18nResponse).toHaveBeenCalledWith(
         mockReq,
         mockRes,

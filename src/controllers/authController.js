@@ -93,7 +93,15 @@ const register = asyncHandler(async (req, res) => {
     }
   }
 
-  // Create user (email not verified)
+  // Prepare the OTP up front so the user row is created complete in a single
+  // INSERT. Previously the user was created and then saved again with the OTP;
+  // a failure between the two left an unusable account and made the retry fail
+  // on "email already in use".
+  const otp = generateOTP();
+  const otpCodeHash = await hashOTP(otp);
+  const otpExpires = getOTPExpiry();
+
+  // Create user (email not verified), OTP fields included atomically.
   const user = await User.create({
     email,
     password,
@@ -104,6 +112,9 @@ const register = asyncHandler(async (req, res) => {
     gender,
     role: "client", // All users start as clients, can apply to become provider
     isEmailVerified: false,
+    otpCode: otpCodeHash,
+    otpExpires,
+    otpAttempts: 0,
   });
 
   // Record the referral as pending. The bonus is applied later by the
@@ -133,13 +144,6 @@ const register = asyncHandler(async (req, res) => {
       });
     }
   }
-
-  // Generate and send OTP
-  const otp = generateOTP();
-  user.otpCode = await hashOTP(otp);
-  user.otpExpires = getOTPExpiry();
-  user.otpAttempts = 0;
-  await user.save({ fields: ["otpCode", "otpExpires", "otpAttempts"] });
 
   // Send OTP email (optional - don't fail if email system is down)
   await sendEmailSafely(
