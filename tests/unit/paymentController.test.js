@@ -195,6 +195,7 @@ describe('PaymentController Unit Tests', () => {
 
             const mockPayment = {
                 transactionId: 'AELI_TX_123',
+                userId: 'user-123',
                 status: 'ACCEPTED',
                 amount: 5000,
                 currency: 'XAF',
@@ -207,6 +208,22 @@ describe('PaymentController Unit Tests', () => {
 
             const { i18nResponse } = require('../../src/utils/helpers');
             expect(i18nResponse).toHaveBeenCalledWith(req, res, 200, 'payment.status', expect.anything());
+        });
+
+        it('should forbid reading a payment owned by another user', async () => {
+            req.params = { transactionId: 'AELI_TX_999' };
+            Payment.findByTransactionId.mockResolvedValue({
+                transactionId: 'AELI_TX_999',
+                userId: 'someone-else',
+                status: 'ACCEPTED',
+            });
+
+            await checkPaymentStatus(req, res, next);
+
+            // asyncHandler forwards the AppError to next()
+            expect(next).toHaveBeenCalledWith(
+                expect.objectContaining({ statusCode: 403 }),
+            );
         });
     });
 
