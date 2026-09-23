@@ -122,6 +122,7 @@
     "history": "Payment history",
     "status": "Payment status",
     "notConfirmed": "Payment not confirmed",
+    "alreadyUsed": "This payment has already been used to unlock a message",
     "gatewayUnavailable": "The payment service is temporarily unavailable, please try again in a few minutes."
   },
   "subscription": {
