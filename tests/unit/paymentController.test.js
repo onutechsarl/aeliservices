@@ -252,23 +252,41 @@ describe('PaymentController Unit Tests', () => {
     });
 
     describe('handleNotchPayWebhook', () => {
+        const crypto = require('crypto');
         const { handleNotchPayWebhook } = require('../../src/controllers/paymentController');
+        const { NOTCH_PAY_CONFIG } = require('../../src/config/notchpay');
 
-        it('should process accepted NotchPay webhook', async () => {
-            req.method = 'POST'; // Simuler une requête POST
-            req.headers = { 'x-notch-signature': null }; // Pas de signature en test
+        const WEBHOOK_SECRET = 'test_webhook_secret';
+        let previousSecret;
+
+        beforeEach(() => {
+            previousSecret = NOTCH_PAY_CONFIG.webhookSecret;
+            NOTCH_PAY_CONFIG.webhookSecret = WEBHOOK_SECRET;
+        });
+
+        afterEach(() => {
+            NOTCH_PAY_CONFIG.webhookSecret = previousSecret;
+        });
+
+        const sign = (rawBody) =>
+            crypto.createHmac('sha256', WEBHOOK_SECRET).update(rawBody).digest('hex');
+
+        it('should process an accepted NotchPay webhook when the signature is valid', async () => {
+            req.method = 'POST';
             req.body = {
                 event: 'payment.completed',
-                data: { 
+                data: {
                     reference: 'trx.test_123',
                     merchant_reference: 'AELI_TX_123',
-                    status: 'complete' 
+                    status: 'complete'
                 }
             };
-            req.rawBody = Buffer.from(JSON.stringify(req.body)); // Simuler le raw body
+            req.rawBody = Buffer.from(JSON.stringify(req.body));
+            req.headers = { 'x-notch-signature': sign(req.rawBody) };
 
             const mockPayment = {
                 transactionId: 'AELI_TX_123',
+                type: 'contact_premium',
                 status: 'PENDING',
                 updateFromNotchPay: jest.fn().mockResolvedValue(true),
                 save: jest.fn().mockResolvedValue(true)
@@ -284,6 +302,30 @@ describe('PaymentController Unit Tests', () => {
                 status: 'complete'
             });
             expect(res.status).toHaveBeenCalledWith(200);
+        });
+
+        it('should reject a webhook with no signature header', async () => {
+            req.method = 'POST';
+            req.body = { event: 'payment.completed', data: { merchant_reference: 'AELI_TX_123', status: 'complete' } };
+            req.rawBody = Buffer.from(JSON.stringify(req.body));
+            req.headers = {};
+
+            await handleNotchPayWebhook(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(401);
+            expect(Payment.findByTransactionId).not.toHaveBeenCalled();
+        });
+
+        it('should reject a webhook with a forged signature', async () => {
+            req.method = 'POST';
+            req.body = { event: 'payment.completed', data: { merchant_reference: 'AELI_TX_123', status: 'complete' } };
+            req.rawBody = Buffer.from(JSON.stringify(req.body));
+            req.headers = { 'x-notch-signature': 'deadbeef' };
+
+            await handleNotchPayWebhook(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(401);
+            expect(Payment.findByTransactionId).not.toHaveBeenCalled();
         });
     });
 
