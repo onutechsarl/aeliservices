@@ -111,6 +111,10 @@ app.use(cookieParser());
 // Rate limiting
 app.use('/api', generalLimiter);
 
+// Block banned IPs before any route handling
+const { ipBanlistMiddleware } = require('./middlewares/ipBanlist');
+app.use('/api', ipBanlistMiddleware);
+
 // ============ BODY PARSING ============
 
 // Parse JSON bodies and keep raw buffer for webhook signature verification

@@ -27,8 +27,13 @@ const cleanExpiredTokens = () => {
     }
 };
 
-// Clean expired tokens every 10 minutes
-setInterval(cleanExpiredTokens, 10 * 60 * 1000);
+// Clean expired tokens every 10 minutes.
+// unref() so this timer never keeps the process alive (clean shutdown, and it
+// no longer blocks the test runner / one-off scripts from exiting).
+const csrfCleanupTimer = setInterval(cleanExpiredTokens, 10 * 60 * 1000);
+if (typeof csrfCleanupTimer.unref === 'function') {
+    csrfCleanupTimer.unref();
+}
 
 /**
  * CSRF token generation middleware
