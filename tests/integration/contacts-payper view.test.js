@@ -167,9 +167,10 @@ describe('Contact Pay-Per-View E2E Tests', () => {
                 .post(`/api/contacts/${lockedContact.id}/unlock`)
                 .set('Authorization', `Bearer ${providerToken}`);
 
-            // Will fail without CinetPay API key in test env
-            // But should at least validate the flow
-            expect([200, 500]).toContain(res.statusCode);
+            // Without payment-gateway keys/network in the test env the gateway
+            // init fails and the handler returns a clean 502 (gateway
+            // unavailable); a configured gateway returns 200.
+            expect([200, 502]).toContain(res.statusCode);
 
             if (res.statusCode === 200) {
                 expect(res.body.data.amount).toBe(500);
