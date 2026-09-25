@@ -224,9 +224,9 @@ describe('Encryption Utility', () => {
             expect(key1).not.toBe(key2);
         });
 
-        test('should generate hex-compatible key', () => {
+        test('should generate a URL-safe (base64url) key', () => {
             const key = encryption.generateEncryptionKey();
-            expect(/^[0-9a-f]+$/i.test(key)).toBe(true);
+            expect(/^[A-Za-z0-9_-]+$/.test(key)).toBe(true);
         });
     });
 
@@ -241,6 +241,27 @@ describe('Encryption Utility', () => {
             // Should return original (silently fail) rather than throw
             const result = encryption.decrypt(tampered);
             expect(result).toBe(tampered);
+        });
+
+        test('should return null (never the raw hex) for an authentic-format but corrupt value', () => {
+            const encrypted = encryption.encrypt('secret');
+            const parts = encrypted.split(':');
+            // Flip the ciphertext to a valid-hex but wrong value so it parses as
+            // encrypted-format yet fails authentication.
+            parts[2] = parts[2].replace(/./, (c) => (c === 'a' ? 'b' : 'a'));
+            const corrupt = parts.join(':');
+
+            const result = encryption.decrypt(corrupt);
+            expect(result).toBeNull();
+        });
+
+        test('should throw in strict mode for a corrupt encrypted value', () => {
+            const encrypted = encryption.encrypt('secret');
+            const parts = encrypted.split(':');
+            parts[2] = parts[2].replace(/./, (c) => (c === 'a' ? 'b' : 'a'));
+            const corrupt = parts.join(':');
+
+            expect(() => encryption.decrypt(corrupt, { strict: true })).toThrow();
         });
     });
 });

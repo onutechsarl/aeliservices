@@ -15,6 +15,7 @@ const {
   getPaginationParams,
   getPaginationData,
   sendEmailSafely,
+  getFrontendUrl,
 } = require("../utils/helpers");
 const logger = require("../utils/logger");
 const { auditLogger } = require("../middlewares/audit");
@@ -344,64 +345,70 @@ const handleWebhook = asyncHandler(async (req, res) => {
 });
 
 /**
- * NotchPay webhook handler
+ * Constant-time comparison of a received signature against the expected HMAC.
+ * Returns false on any length mismatch or malformed input instead of throwing.
+ */
+const signatureMatches = (expectedHex, receivedHex) => {
+  if (typeof receivedHex !== "string" || !receivedHex) return false;
+  const expected = Buffer.from(expectedHex, "hex");
+  let received;
+  try {
+    received = Buffer.from(receivedHex, "hex");
+  } catch (e) {
+    return false;
+  }
+  if (expected.length !== received.length) return false;
+  return crypto.timingSafeEqual(expected, received);
+};
+
+/**
+ * NotchPay webhook handler (server-to-server, state-changing)
  * POST /api/payments/notchpay/webhook
+ *
+ * The signature is MANDATORY. A missing header, an unconfigured secret, or a
+ * mismatch all reject the request. This is the only entry point allowed to
+ * move a payment to ACCEPTED/REFUSED; the browser callback (GET) is read-only.
  */
 const handleNotchPayWebhook = asyncHandler(async (req, res) => {
   const signature = req.headers["x-notch-signature"];
 
-  // Supporter JSON body OU query parameters
-  let event;
-  let rawBody;
-
-  if (req.method === "POST" && req.body && Object.keys(req.body).length > 0) {
-    // Mode JSON body - NotchPay envoie les données dans req.body directement
-    event = req.body;
-    rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
-
-    // NotchPay format: { event: "payment.complete", data: { merchant_reference, reference, status } }
-    // Pas besoin de transformation, les données sont déjà au bon format
-  } else {
-    // Mode query parameters (callback NotchPay)
-    event = {
-      event: "payment.completed",
-      data: {
-        reference: req.query.reference,
-        merchant_reference: req.query.trxref || req.query.notchpay_trxref,
-        status: req.query.status,
-      },
-    };
-    rawBody = Buffer.from(JSON.stringify(event));
+  // Only a signed JSON body is accepted here. Query-parameter payloads cannot
+  // be signed and must not reach this state-changing path.
+  if (!req.body || Object.keys(req.body).length === 0) {
+    logger.warn("NotchPay webhook called without a JSON body");
+    return res.status(400).send("Missing body");
   }
+
+  const event = req.body;
+  const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
 
   const webhookSecret =
     NOTCH_PAY_CONFIG.webhookSecret || NOTCH_PAY_CONFIG.secretKey;
 
-  logger.info(
-    `NotchPay Webhook received: ${event.event} for ref ${event.data?.reference}`,
-  );
-  logger.debug(`NotchPay signature header: ${signature}`);
-  logger.debug(`Webhook secret loaded: ${!!webhookSecret}`);
-  logger.debug(`Raw body length: ${rawBody.length}`);
-
-  // Verify signature (Security best practice)
-  if (signature && webhookSecret) {
-    const hash = crypto
-      .createHmac("sha256", webhookSecret)
-      .update(rawBody)
-      .digest("hex");
-
-    logger.debug(`Calculated hash: ${hash}`);
-
-    if (hash !== signature) {
-      logger.warn("Invalid NotchPay signature");
-      return res.status(401).send("Invalid signature");
-    }
-  } else if (signature && !webhookSecret) {
-    logger.warn(
-      "NotchPay signature received but webhook secret is not configured",
-    );
+  // Fail closed: no secret configured means we cannot trust anything.
+  if (!webhookSecret) {
+    logger.error("NotchPay webhook secret is not configured; rejecting webhook");
+    return res.status(503).send("Webhook not configured");
   }
+
+  if (!signature) {
+    logger.warn("NotchPay webhook rejected: missing signature header");
+    return res.status(401).send("Missing signature");
+  }
+
+  const expectedHash = crypto
+    .createHmac("sha256", webhookSecret)
+    .update(rawBody)
+    .digest("hex");
+
+  if (!signatureMatches(expectedHash, signature)) {
+    logger.warn("Invalid NotchPay signature");
+    return res.status(401).send("Invalid signature");
+  }
+
+  logger.info(
+    `NotchPay Webhook verified: ${event.event} for ref ${event.data?.reference}`,
+  );
 
   const { reference, merchant_reference, status } = event.data || {};
 
@@ -427,16 +434,80 @@ const handleNotchPayWebhook = asyncHandler(async (req, res) => {
     return res.status(200).send("OK");
   }
 
-  // Update payment
-  await payment.updateFromNotchPay(event.data);
+  // Revalidate the amount/currency against what we recorded at init time.
+  const amountCheck = payment.matchesGatewayAmount(event.data);
+  if (!amountCheck.ok) {
+    logger.error(
+      `NotchPay webhook amount mismatch for ${transactionId}: ${amountCheck.message}`,
+    );
+    return res.status(400).send("Amount mismatch");
+  }
 
-  if (payment.status === "ACCEPTED") {
+  // Atomically claim the payment so the business logic runs exactly once,
+  // even if the webhook and a status poll arrive concurrently. The row is
+  // locked and re-read inside the transaction; only the caller that flips it
+  // out of a non-final state runs the side effects afterwards.
+  const { withTransaction } = require("../utils/dbHelpers");
+  let becameAccepted = false;
+  let becameRefused = false;
+
+  await withTransaction(async (t) => {
+    const fresh = await Payment.findByPk(payment.id, {
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (
+      !fresh ||
+      fresh.status === "ACCEPTED" ||
+      fresh.status === "REFUSED"
+    ) {
+      return; // already finalized by a concurrent request
+    }
+
+    await fresh.updateFromNotchPay(event.data, { transaction: t });
+    becameAccepted = fresh.status === "ACCEPTED";
+    becameRefused = fresh.status === "REFUSED";
+    // keep the outer reference in sync for the side effects below
+    payment.status = fresh.status;
+    payment.errorMessage = fresh.errorMessage;
+  });
+
+  if (becameAccepted) {
     await processPaymentSuccess(payment);
-  } else if (payment.status === "REFUSED") {
+  } else if (becameRefused) {
     await processPaymentFailure(payment, payment.errorMessage);
   }
 
   res.status(200).send("OK");
+});
+
+/**
+ * NotchPay browser callback (read-only)
+ * GET /api/payments/notchpay/webhook
+ *
+ * NotchPay redirects the customer's browser here after payment. The query
+ * string is attacker-controllable, so this handler NEVER changes payment
+ * state. It only reads the current status (authoritatively set by the signed
+ * POST webhook) and redirects the browser to the frontend result page.
+ */
+const handleNotchPayCallback = asyncHandler(async (req, res) => {
+  const reference =
+    req.query.trxref || req.query.notchpay_trxref || req.query.reference;
+
+  const frontend = getFrontendUrl();
+  const base = `${frontend.replace(/\/$/, "")}/payment/callback`;
+
+  if (!reference) {
+    return res.redirect(`${base}?status=unknown`);
+  }
+
+  const payment = await Payment.findByTransactionId(reference);
+  const status = payment ? payment.status : "unknown";
+
+  // No state mutation here — the signed webhook is the source of truth.
+  return res.redirect(
+    `${base}?reference=${encodeURIComponent(reference)}&status=${encodeURIComponent(status)}`,
+  );
 });
 
 /**
@@ -542,33 +613,15 @@ const checkPaymentStatus = asyncHandler(async (req, res) => {
     throw new AppError(req.t("payment.notFound"), 404);
   }
 
-  // If pending, check with CinetPay
-  if (payment.status === "PENDING" || payment.status === "WAITING_CUSTOMER") {
-    try {
-      const response = await axios.post(
-        CINETPAY_CONFIG.checkUrl,
-        {
-          apikey: CINETPAY_CONFIG.apiKey,
-          site_id: CINETPAY_CONFIG.siteId,
-          transaction_id: transactionId,
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        },
-      );
-
-      if (response.data.code === "00") {
-        await payment.updateFromCinetPay(response.data.data);
-
-        if (response.data.data.status === "ACCEPTED") {
-          await processPaymentSuccess(payment);
-        }
-      }
-    } catch (error) {
-      logger.error(`Error checking payment status: ${error.message}`);
-    }
+  // Only the payer (or an admin) may read a payment's status.
+  const isAdmin = req.user?.role === "admin";
+  if (!isAdmin && payment.userId !== req.user?.id) {
+    throw new AppError(req.t("common.forbidden"), 403);
   }
 
+  // Read-only: the payment status is set authoritatively by the signed
+  // gateway webhook. This endpoint never contacts the gateway and never
+  // triggers activation — that removes the previous public side effect.
   i18nResponse(req, res, 200, "payment.status", {
     transactionId: payment.transactionId,
     status: payment.status,
@@ -652,6 +705,7 @@ module.exports = {
   initializeNotchPayPayment,
   handleWebhook,
   handleNotchPayWebhook,
+  handleNotchPayCallback,
   checkPaymentStatus,
   getPaymentHistory,
   getAllPayments,

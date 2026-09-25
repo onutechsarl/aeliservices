@@ -202,8 +202,36 @@ describe('Payment API Integration', () => {
     });
 
     describe('POST /api/payments/notchpay/webhook', () => {
-        it('should process NotchPay webhook with merchant_reference', async () => {
-            // Create a test payment
+        const crypto = require('crypto');
+        const { NOTCH_PAY_CONFIG } = require('../../src/config/notchpay');
+        const WEBHOOK_SECRET = 'test_webhook_secret';
+        let previousSecret;
+
+        // The signature is computed over the exact bytes sent on the wire.
+        // supertest serializes with JSON.stringify, so we sign the same string.
+        const signedRequest = (payload) => {
+            const raw = JSON.stringify(payload);
+            const signature = crypto
+                .createHmac('sha256', WEBHOOK_SECRET)
+                .update(raw)
+                .digest('hex');
+            return request(app)
+                .post('/api/payments/notchpay/webhook')
+                .set('Content-Type', 'application/json')
+                .set('x-notch-signature', signature)
+                .send(raw);
+        };
+
+        beforeAll(() => {
+            previousSecret = NOTCH_PAY_CONFIG.webhookSecret;
+            NOTCH_PAY_CONFIG.webhookSecret = WEBHOOK_SECRET;
+        });
+
+        afterAll(() => {
+            NOTCH_PAY_CONFIG.webhookSecret = previousSecret;
+        });
+
+        it('should process a correctly signed NotchPay webhook', async () => {
             const payment = await Payment.create({
                 transactionId: 'WEBHOOK_TEST_123',
                 gateway: 'NotchPay',
@@ -215,42 +243,64 @@ describe('Payment API Integration', () => {
                 description: 'Webhook test payment'
             });
 
-            const res = await request(app)
-                .post('/api/payments/notchpay/webhook')
-                .send({
-                    event: 'payment.completed',
-                    data: {
-                        reference: 'trx.test_123',
-                        merchant_reference: 'WEBHOOK_TEST_123',
-                        status: 'complete'
-                    }
-                });
+            const res = await signedRequest({
+                event: 'payment.completed',
+                data: {
+                    reference: 'trx.test_123',
+                    merchant_reference: 'WEBHOOK_TEST_123',
+                    status: 'complete'
+                }
+            });
 
             expect(res.statusCode).toBe(200);
             expect(res.text).toBe('OK');
 
-            // Verify payment was updated
             const updatedPayment = await Payment.findByPk(payment.id);
             expect(updatedPayment.status).toBe('ACCEPTED');
         });
 
-        it('should handle missing payment gracefully', async () => {
+        it('should reject an unsigned webhook (the money bug)', async () => {
+            const payment = await Payment.create({
+                transactionId: 'WEBHOOK_UNSIGNED_1',
+                gateway: 'NotchPay',
+                userId: clientUser.id,
+                type: 'subscription',
+                amount: 5000,
+                currency: 'XAF',
+                status: 'PENDING',
+                providerId: null,
+                description: 'Unsigned webhook attempt'
+            });
+
             const res = await request(app)
                 .post('/api/payments/notchpay/webhook')
                 .send({
-                    event: 'payment.completed',
-                    data: {
-                        reference: 'trx.test_123',
-                        merchant_reference: 'NONEXISTENT',
-                        status: 'complete'
-                    }
+                    event: 'payment.complete',
+                    data: { merchant_reference: 'WEBHOOK_UNSIGNED_1', status: 'complete' }
                 });
+
+            expect(res.statusCode).toBe(401);
+
+            // The payment must NOT have been accepted.
+            const stillPending = await Payment.findByPk(payment.id);
+            expect(stillPending.status).toBe('PENDING');
+        });
+
+        it('should handle missing payment gracefully (when signed)', async () => {
+            const res = await signedRequest({
+                event: 'payment.completed',
+                data: {
+                    reference: 'trx.test_123',
+                    merchant_reference: 'NONEXISTENT',
+                    status: 'complete'
+                }
+            });
 
             expect(res.statusCode).toBe(404);
             expect(res.text).toBe('Payment not found');
         });
 
-        it('should handle invalid signature', async () => {
+        it('should reject an invalid signature', async () => {
             const res = await request(app)
                 .post('/api/payments/notchpay/webhook')
                 .set('x-notch-signature', 'invalid-signature')

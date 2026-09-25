@@ -26,6 +26,7 @@ const {
 const logger = require("../utils/logger");
 const referralReward = require("../services/referralReward");
 const { getSetting } = require("../utils/settings");
+const { withTransaction } = require("../utils/dbHelpers");
 const {
   handleFailedLogin,
   handleSuccessfulLogin,
@@ -44,12 +45,7 @@ const generateAccessToken = (userId) => {
   });
 };
 
-/**
- * Generate refresh token (long-lived)
- */
-const generateRefreshToken = () => {
-  return crypto.randomBytes(64).toString("hex");
-};
+// Refresh tokens are now issued and hashed by RefreshToken.issue().
 
 /**
  * @desc    Register a new user
@@ -97,7 +93,15 @@ const register = asyncHandler(async (req, res) => {
     }
   }
 
-  // Create user (email not verified)
+  // Prepare the OTP up front so the user row is created complete in a single
+  // INSERT. Previously the user was created and then saved again with the OTP;
+  // a failure between the two left an unusable account and made the retry fail
+  // on "email already in use".
+  const otp = generateOTP();
+  const otpCodeHash = await hashOTP(otp);
+  const otpExpires = getOTPExpiry();
+
+  // Create user (email not verified), OTP fields included atomically.
   const user = await User.create({
     email,
     password,
@@ -108,6 +112,9 @@ const register = asyncHandler(async (req, res) => {
     gender,
     role: "client", // All users start as clients, can apply to become provider
     isEmailVerified: false,
+    otpCode: otpCodeHash,
+    otpExpires,
+    otpAttempts: 0,
   });
 
   // Record the referral as pending. The bonus is applied later by the
@@ -137,13 +144,6 @@ const register = asyncHandler(async (req, res) => {
       });
     }
   }
-
-  // Generate and send OTP
-  const otp = generateOTP();
-  user.otpCode = await hashOTP(otp);
-  user.otpExpires = getOTPExpiry();
-  user.otpAttempts = 0;
-  await user.save({ fields: ["otpCode", "otpExpires", "otpAttempts"] });
 
   // Send OTP email (optional - don't fail if email system is down)
   await sendEmailSafely(
@@ -214,13 +214,10 @@ const verifyOTPCode = asyncHandler(async (req, res) => {
 
   // Generate tokens
   const accessToken = generateAccessToken(user.id);
-  const refreshToken = generateRefreshToken();
 
-  // Save refresh token
-  await RefreshToken.create({
+  // Issue a refresh token — only its hash is persisted.
+  const { raw: refreshToken } = await RefreshToken.issue({
     userId: user.id,
-    token: refreshToken,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     userAgent: req.get("user-agent"),
     ipAddress: req.ip,
   });
@@ -350,13 +347,10 @@ const login = asyncHandler(async (req, res) => {
 
   // Generate tokens
   const accessToken = generateAccessToken(user.id);
-  const refreshToken = generateRefreshToken();
 
-  // Save refresh token
-  await RefreshToken.create({
+  // Issue a refresh token — only its hash is persisted.
+  const { raw: refreshToken } = await RefreshToken.issue({
     userId: user.id,
-    token: refreshToken,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     userAgent: req.get("user-agent"),
     ipAddress: req.ip,
   });
@@ -393,12 +387,26 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     throw new AppError(req.t("auth.refreshTokenInvalid"), 400);
   }
 
-  // Find refresh token
-  const tokenRecord = await RefreshToken.findOne({
-    where: { token: refreshToken, isRevoked: false },
-  });
+  // Look the token up by its hash (raw tokens are never stored).
+  const tokenRecord = await RefreshToken.findByRawToken(refreshToken);
 
   if (!tokenRecord) {
+    throw new AppError(req.t("auth.refreshTokenInvalid"), 401);
+  }
+
+  // Reuse detection: a token that exists but is already revoked is being
+  // replayed (it was rotated out or the user logged out). Treat it as a
+  // compromise signal and revoke the whole family for that user.
+  if (tokenRecord.isRevoked) {
+    await RefreshToken.revokeAllForUser(tokenRecord.userId);
+    await logSecurityEvent(
+      "token_refresh",
+      req,
+      tokenRecord.userId,
+      { reused: true },
+      false,
+      "high"
+    );
     throw new AppError(req.t("auth.refreshTokenInvalid"), 401);
   }
 
@@ -406,20 +414,38 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   if (new Date() > tokenRecord.expiresAt) {
     tokenRecord.isRevoked = true;
     tokenRecord.revokedAt = new Date();
-    await tokenRecord.save();
+    await tokenRecord.save({ fields: ["isRevoked", "revokedAt"] });
     throw new AppError(req.t("auth.tokenExpired"), 401);
   }
 
-  // Update last used
-  tokenRecord.lastUsedAt = new Date();
-  await tokenRecord.save({ fields: ["lastUsedAt"] });
-
-  // Generate new access token
+  // Rotate: revoke the presented token and issue a fresh one, so a leaked
+  // refresh token has a single use before it is invalidated.
   const accessToken = generateAccessToken(tokenRecord.userId);
+  let newRefreshToken;
+  await withTransaction(async (t) => {
+    tokenRecord.isRevoked = true;
+    tokenRecord.revokedAt = new Date();
+    tokenRecord.lastUsedAt = new Date();
+    await tokenRecord.save({
+      fields: ["isRevoked", "revokedAt", "lastUsedAt"],
+      transaction: t,
+    });
+
+    const issued = await RefreshToken.issue({
+      userId: tokenRecord.userId,
+      userAgent: req.get("user-agent"),
+      ipAddress: req.ip,
+      transaction: t,
+    });
+    newRefreshToken = issued.raw;
+  });
 
   await logSecurityEvent("token_refresh", req, tokenRecord.userId, {}, true);
 
-  i18nResponse(req, res, 200, "auth.tokenRefreshed", { accessToken });
+  i18nResponse(req, res, 200, "auth.tokenRefreshed", {
+    accessToken,
+    refreshToken: newRefreshToken,
+  });
 });
 
 /**
@@ -431,10 +457,15 @@ const logout = asyncHandler(async (req, res) => {
   const { refreshToken } = req.body;
 
   if (refreshToken) {
-    // Revoke specific refresh token
+    // Revoke specific refresh token (looked up by hash)
     await RefreshToken.update(
       { isRevoked: true, revokedAt: new Date() },
-      { where: { token: refreshToken, userId: req.user.id } }
+      {
+        where: {
+          token: RefreshToken.hashToken(refreshToken),
+          userId: req.user.id,
+        },
+      }
     );
   }
 
@@ -549,12 +580,10 @@ const resetPassword = asyncHandler(async (req, res) => {
 
   // Generate new tokens
   const accessToken = generateAccessToken(user.id);
-  const refreshToken = generateRefreshToken();
 
-  await RefreshToken.create({
+  // Issue a refresh token — only its hash is persisted.
+  const { raw: refreshToken } = await RefreshToken.issue({
     userId: user.id,
-    token: refreshToken,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     userAgent: req.get("user-agent"),
     ipAddress: req.ip,
   });

@@ -33,26 +33,44 @@ const parseFrontendUrls = (urlStr) => {
   return rawUrl.split(",").map((url) => url.trim());
 };
 
-const defaultOrigins = [
+// Local development origins are always allowed.
+const devOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:5173",
+  "http://localhost:5174",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
-  "http://localhost:5174",
+];
+
+// Production origins. Prefer CORS_ALLOWED_ORIGINS (CSV or JSON array) so they
+// can be changed without a code deploy; fall back to the known list otherwise.
+// The previous "…vercel.app/#" entry was invalid (an Origin header never
+// carries a fragment) and has been dropped.
+const prodOriginsFallback = [
   "https://aeli-service-admin.onrender.com",
   "https://aeli-service.onrender.com",
   "https://aeliservices.vercel.app",
   "https://aeliservicesfrontuser.vercel.app",
   "https://aeliserviceadmin.vercel.app",
-  "https://aeliservicesfrontuser.vercel.app/#"
 ];
+
+const configuredProdOrigins = parseFrontendUrls(process.env.CORS_ALLOWED_ORIGINS);
+const prodOrigins = configuredProdOrigins.length > 0
+  ? configuredProdOrigins
+  : prodOriginsFallback;
 
 const envOrigins = parseFrontendUrls(process.env.FRONTEND_URL);
 
-// Combine and remove duplicates
-const allAllowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])];
+// Combine and remove duplicates, trimming any accidental whitespace/fragments.
+const allAllowedOrigins = [
+  ...new Set(
+    [...devOrigins, ...prodOrigins, ...envOrigins]
+      .map((o) => (typeof o === "string" ? o.trim().replace(/\/#.*$/, "") : o))
+      .filter(Boolean)
+  ),
+];
 
 const corsOptions = {
   origin: (origin, callback) => {

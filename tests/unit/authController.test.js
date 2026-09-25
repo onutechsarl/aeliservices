@@ -29,9 +29,12 @@ jest.mock("../../src/models", () => ({
   },
   RefreshToken: {
     findOne: jest.fn(),
+    findByRawToken: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     revokeAllForUser: jest.fn(),
+    hashToken: jest.fn((raw) => `hash(${raw})`),
+    issue: jest.fn().mockResolvedValue({ raw: "new-refresh-token", record: {} }),
   },
   Referral: {
     create: jest.fn(),
@@ -103,6 +106,10 @@ jest.mock("../../src/services/referralReward", () => ({
 
 jest.mock("../../src/utils/settings", () => ({
   getSetting: jest.fn(() => Promise.resolve(true)),
+}));
+
+jest.mock("../../src/utils/dbHelpers", () => ({
+  withTransaction: (cb) => cb({}),
 }));
 
 const { User, Provider, RefreshToken } = require("../../src/models");
@@ -192,20 +199,22 @@ describe("Auth Controller", () => {
       expect(User.findOne).toHaveBeenCalledWith({
         where: { email: userData.email },
       });
-      expect(User.create).toHaveBeenCalledWith({
-        email: userData.email,
-        password: userData.password,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        phone: userData.phone,
-        country: "Cameroun",
-        gender: "male",
-        role: "client",
-        isEmailVerified: false,
-      });
-      expect(mockUser.save).toHaveBeenCalledWith({
-        fields: ["otpCode", "otpExpires", "otpAttempts"],
-      });
+      // The user is now created in a single INSERT with the OTP fields
+      // included (no separate save that could fail after creation).
+      expect(User.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: userData.email,
+          password: userData.password,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          phone: userData.phone,
+          country: "Cameroun",
+          gender: "male",
+          role: "client",
+          isEmailVerified: false,
+          otpAttempts: 0,
+        })
+      );
       expect(i18nResponse).toHaveBeenCalledWith(
         mockReq,
         mockRes,
@@ -387,12 +396,12 @@ describe("Auth Controller", () => {
       };
 
       User.findOne.mockResolvedValue(mockUser);
-      RefreshToken.create.mockResolvedValue();
+      RefreshToken.issue.mockResolvedValue({ raw: "new-refresh-token", record: {} });
 
       await verifyOTPCode(mockReq, mockRes, mockNext);
 
       expect(handleSuccessfulOTP).toHaveBeenCalledWith(mockUser, mockReq);
-      expect(RefreshToken.create).toHaveBeenCalled();
+      expect(RefreshToken.issue).toHaveBeenCalled();
       expect(i18nResponse).toHaveBeenCalledWith(
         mockReq,
         mockRes,
@@ -442,13 +451,13 @@ describe("Auth Controller", () => {
       };
 
       User.findOne.mockResolvedValue(mockUser);
-      RefreshToken.create.mockResolvedValue();
+      RefreshToken.issue.mockResolvedValue({ raw: "new-refresh-token", record: {} });
 
       await login(mockReq, mockRes, mockNext);
 
       expect(handleSuccessfulLogin).toHaveBeenCalledWith(mockUser, mockReq);
       expect(auditLogger.userLoggedIn).toHaveBeenCalledWith(mockReq, mockUser);
-      expect(RefreshToken.create).toHaveBeenCalled();
+      expect(RefreshToken.issue).toHaveBeenCalled();
       expect(i18nResponse).toHaveBeenCalledWith(
         mockReq,
         mockRes,
@@ -518,39 +527,61 @@ describe("Auth Controller", () => {
 
       const mockTokenRecord = {
         userId: "user-123",
+        isRevoked: false,
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         save: jest.fn().mockResolvedValue(),
       };
 
-      RefreshToken.findOne.mockResolvedValue(mockTokenRecord);
+      RefreshToken.findByRawToken.mockResolvedValue(mockTokenRecord);
+      RefreshToken.issue.mockResolvedValue({
+        raw: "new-refresh-token",
+        record: {},
+      });
 
       await refreshAccessToken(mockReq, mockRes, mockNext);
 
-      expect(RefreshToken.findOne).toHaveBeenCalledWith({
-        where: { token: "valid-refresh-token", isRevoked: false },
-      });
+      expect(RefreshToken.findByRawToken).toHaveBeenCalledWith(
+        "valid-refresh-token"
+      );
       expect(jwt.sign).toHaveBeenCalledWith(
         { id: "user-123", type: "access" },
         process.env.JWT_SECRET,
         { expiresIn: expect.any(String) }
       );
+      // Rotation: the presented token is revoked and a new one is issued.
+      expect(mockTokenRecord.isRevoked).toBe(true);
+      expect(RefreshToken.issue).toHaveBeenCalled();
       expect(i18nResponse).toHaveBeenCalledWith(
         mockReq,
         mockRes,
         200,
         "auth.tokenRefreshed",
-        { accessToken: "access-token" }
+        { accessToken: "access-token", refreshToken: "new-refresh-token" }
       );
     });
 
     it("should throw error for invalid refresh token", async () => {
       mockReq.body = { refreshToken: "invalid-token" };
 
-      RefreshToken.findOne.mockResolvedValue(null);
+      RefreshToken.findByRawToken.mockResolvedValue(null);
 
       await expect(
         refreshAccessToken(mockReq, mockRes, mockNext)
       ).rejects.toThrow("auth.refreshTokenInvalid");
+    });
+
+    it("should revoke the whole family when a revoked token is replayed", async () => {
+      mockReq.body = { refreshToken: "replayed-token" };
+      RefreshToken.findByRawToken.mockResolvedValue({
+        userId: "user-123",
+        isRevoked: true,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+
+      await expect(
+        refreshAccessToken(mockReq, mockRes, mockNext)
+      ).rejects.toThrow("auth.refreshTokenInvalid");
+      expect(RefreshToken.revokeAllForUser).toHaveBeenCalledWith("user-123");
     });
   });
 
@@ -612,13 +643,13 @@ describe("Auth Controller", () => {
 
       User.findOne.mockResolvedValue(mockUser);
       RefreshToken.revokeAllForUser.mockResolvedValue();
-      RefreshToken.create.mockResolvedValue();
+      RefreshToken.issue.mockResolvedValue({ raw: "new-refresh-token", record: {} });
 
       await resetPassword(mockReq, mockRes, mockNext);
 
       expect(mockUser.save).toHaveBeenCalled();
       expect(RefreshToken.revokeAllForUser).toHaveBeenCalledWith("user-123");
-      expect(RefreshToken.create).toHaveBeenCalled();
+      expect(RefreshToken.issue).toHaveBeenCalled();
       expect(i18nResponse).toHaveBeenCalledWith(
         mockReq,
         mockRes,

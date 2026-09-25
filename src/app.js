@@ -111,6 +111,10 @@ app.use(cookieParser());
 // Rate limiting
 app.use('/api', generalLimiter);
 
+// Block banned IPs before any route handling
+const { ipBanlistMiddleware } = require('./middlewares/ipBanlist');
+app.use('/api', ipBanlistMiddleware);
+
 // ============ BODY PARSING ============
 
 // Parse JSON bodies and keep raw buffer for webhook signature verification
@@ -144,7 +148,10 @@ app.use(csrfTokenMiddleware);
 
 // Health check endpoints
 app.get('/api/health', basicHealth);
-app.get('/api/health/detailed', detailedHealth);
+// Detailed health leaks internal infra state (DB/Redis/SMTP, hostname, memory)
+// and must not be public. Orchestrators use /ready and /live below instead.
+const { protect, restrictTo } = require('./middlewares/auth');
+app.get('/api/health/detailed', protect, restrictTo('admin'), detailedHealth);
 app.get('/api/health/ready', readinessProbe);
 app.get('/api/health/live', livenessProbe);
 

@@ -63,6 +63,12 @@ jest.mock('../../src/models', () => {
     return mockModels;
 });
 
+// Run withTransaction callbacks synchronously with a dummy transaction so unit
+// tests don't need a real DB transaction.
+jest.mock('../../src/utils/dbHelpers', () => ({
+    withTransaction: (cb) => cb({ LOCK: { UPDATE: 'UPDATE' } }),
+}));
+
 // Mock errorHandler and asyncHandler
 jest.mock('../../src/middlewares/errorHandler', () => {
     return {
@@ -195,6 +201,7 @@ describe('PaymentController Unit Tests', () => {
 
             const mockPayment = {
                 transactionId: 'AELI_TX_123',
+                userId: 'user-123',
                 status: 'ACCEPTED',
                 amount: 5000,
                 currency: 'XAF',
@@ -207,6 +214,19 @@ describe('PaymentController Unit Tests', () => {
 
             const { i18nResponse } = require('../../src/utils/helpers');
             expect(i18nResponse).toHaveBeenCalledWith(req, res, 200, 'payment.status', expect.anything());
+        });
+
+        it('should forbid reading a payment owned by another user', async () => {
+            req.params = { transactionId: 'AELI_TX_999' };
+            Payment.findByTransactionId.mockResolvedValue({
+                transactionId: 'AELI_TX_999',
+                userId: 'someone-else',
+                status: 'ACCEPTED',
+            });
+
+            await expect(
+                checkPaymentStatus(req, res, next),
+            ).rejects.toMatchObject({ statusCode: 403 });
         });
     });
 
@@ -252,38 +272,96 @@ describe('PaymentController Unit Tests', () => {
     });
 
     describe('handleNotchPayWebhook', () => {
+        const crypto = require('crypto');
         const { handleNotchPayWebhook } = require('../../src/controllers/paymentController');
+        const { NOTCH_PAY_CONFIG } = require('../../src/config/notchpay');
 
-        it('should process accepted NotchPay webhook', async () => {
-            req.method = 'POST'; // Simuler une requête POST
-            req.headers = { 'x-notch-signature': null }; // Pas de signature en test
+        const WEBHOOK_SECRET = 'test_webhook_secret';
+        let previousSecret;
+
+        beforeEach(() => {
+            previousSecret = NOTCH_PAY_CONFIG.webhookSecret;
+            NOTCH_PAY_CONFIG.webhookSecret = WEBHOOK_SECRET;
+        });
+
+        afterEach(() => {
+            NOTCH_PAY_CONFIG.webhookSecret = previousSecret;
+        });
+
+        const sign = (rawBody) =>
+            crypto.createHmac('sha256', WEBHOOK_SECRET).update(rawBody).digest('hex');
+
+        it('should process an accepted NotchPay webhook when the signature is valid', async () => {
+            req.method = 'POST';
             req.body = {
                 event: 'payment.completed',
-                data: { 
+                data: {
                     reference: 'trx.test_123',
                     merchant_reference: 'AELI_TX_123',
-                    status: 'complete' 
+                    status: 'complete'
                 }
             };
-            req.rawBody = Buffer.from(JSON.stringify(req.body)); // Simuler le raw body
+            req.rawBody = Buffer.from(JSON.stringify(req.body));
+            req.headers = { 'x-notch-signature': sign(req.rawBody) };
 
             const mockPayment = {
+                id: 'pay-1',
                 transactionId: 'AELI_TX_123',
+                type: 'contact_premium',
                 status: 'PENDING',
-                updateFromNotchPay: jest.fn().mockResolvedValue(true),
-                save: jest.fn().mockResolvedValue(true)
+                matchesGatewayAmount: jest.fn().mockReturnValue({ ok: true }),
             };
             Payment.findByTransactionId.mockResolvedValue(mockPayment);
+
+            // Inside the row-locked transaction the handler re-reads the payment
+            // via findByPk and updates that fresh instance.
+            const freshPayment = {
+                id: 'pay-1',
+                status: 'PENDING',
+                updateFromNotchPay: jest.fn().mockImplementation(function () {
+                    this.status = 'ACCEPTED';
+                    return Promise.resolve(this);
+                }),
+            };
+            Payment.findByPk.mockResolvedValue(freshPayment);
 
             await handleNotchPayWebhook(req, res, next);
 
             expect(Payment.findByTransactionId).toHaveBeenCalledWith('AELI_TX_123');
-            expect(mockPayment.updateFromNotchPay).toHaveBeenCalledWith({
-                reference: 'trx.test_123',
-                merchant_reference: 'AELI_TX_123',
-                status: 'complete'
-            });
+            expect(mockPayment.matchesGatewayAmount).toHaveBeenCalled();
+            expect(freshPayment.updateFromNotchPay).toHaveBeenCalledWith(
+                {
+                    reference: 'trx.test_123',
+                    merchant_reference: 'AELI_TX_123',
+                    status: 'complete'
+                },
+                expect.objectContaining({ transaction: expect.anything() })
+            );
             expect(res.status).toHaveBeenCalledWith(200);
+        });
+
+        it('should reject a webhook with no signature header', async () => {
+            req.method = 'POST';
+            req.body = { event: 'payment.completed', data: { merchant_reference: 'AELI_TX_123', status: 'complete' } };
+            req.rawBody = Buffer.from(JSON.stringify(req.body));
+            req.headers = {};
+
+            await handleNotchPayWebhook(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(401);
+            expect(Payment.findByTransactionId).not.toHaveBeenCalled();
+        });
+
+        it('should reject a webhook with a forged signature', async () => {
+            req.method = 'POST';
+            req.body = { event: 'payment.completed', data: { merchant_reference: 'AELI_TX_123', status: 'complete' } };
+            req.rawBody = Buffer.from(JSON.stringify(req.body));
+            req.headers = { 'x-notch-signature': 'deadbeef' };
+
+            await handleNotchPayWebhook(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(401);
+            expect(Payment.findByTransactionId).not.toHaveBeenCalled();
         });
     });
 

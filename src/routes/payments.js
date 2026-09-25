@@ -96,7 +96,7 @@ router.post('/notchpay/webhook', require('../controllers/paymentController').han
  *     summary: NotchPay webhook endpoint with query parameters (callback)
  *     tags: [Payments]
  */
-router.get('/notchpay/webhook', require('../controllers/paymentController').handleNotchPayWebhook);
+router.get('/notchpay/webhook', require('../controllers/paymentController').handleNotchPayCallback);
 
 /**
  * @swagger
@@ -114,7 +114,7 @@ router.post('/webhook', handleWebhook);
  *     summary: Check payment status
  *     tags: [Payments]
  */
-router.get('/:transactionId/status', checkPaymentStatus);
+router.get('/:transactionId/status', protect, checkPaymentStatus);
 
 /**
  * @swagger

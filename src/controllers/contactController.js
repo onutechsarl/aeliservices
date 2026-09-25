@@ -446,29 +446,77 @@ const initiateContactUnlock = asyncHandler(async (req, res) => {
 const confirmContactUnlock = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { transactionId } = req.body;
-  const { Payment } = require("../models");
+  const { Payment, Provider } = require("../models");
+  const { withTransaction } = require("../utils/dbHelpers");
 
-  const payment = await Payment.findByTransactionId(transactionId);
+  const isAdmin = req.user.role === "admin";
 
-  if (!payment) {
-    throw new AppError(req.t("payment.notFound"), 404);
-  }
-
-  if (payment.status !== "ACCEPTED") {
-    throw new AppError(req.t("payment.notConfirmed"), 400);
-  }
-
-  const contact = await Contact.findByPk(id);
-
+  const contact = await Contact.findByPk(id, {
+    include: [{ model: Provider, as: "provider", attributes: ["id", "userId"] }],
+  });
   if (!contact) {
     throw new AppError(req.t("contact.notFound"), 404);
   }
 
-  // Unlock the contact
-  contact.isUnlocked = true;
-  contact.unlockedAt = new Date();
-  contact.unlockPaymentId = payment.id;
-  await contact.save();
+  // Ownership: the message must belong to the calling provider (or admin).
+  if (!isAdmin && (!contact.provider || contact.provider.userId !== req.user.id)) {
+    throw new AppError(req.t("common.unauthorized"), 403);
+  }
+
+  const payment = await Payment.findByTransactionId(transactionId);
+  if (!payment) {
+    throw new AppError(req.t("payment.notFound"), 404);
+  }
+  if (payment.status !== "ACCEPTED") {
+    throw new AppError(req.t("payment.notConfirmed"), 400);
+  }
+
+  // Idempotency: this contact is already unlocked by this exact payment.
+  if (contact.isUnlocked && contact.unlockPaymentId === payment.id) {
+    const already = await Contact.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: "sender",
+          attributes: ["id", "firstName", "lastName", "profilePhoto"],
+          required: false,
+        },
+      ],
+    });
+    return i18nResponse(req, res, 200, "contact.unlocked", { contact: already });
+  }
+
+  // The payment must be an unlock payment, owned by the caller, and issued
+  // for THIS contact. Anything else is a replay or a cross-account attempt.
+  const metaContactId = payment.metadata?.contactId;
+  const paymentBelongsToCaller = isAdmin || payment.userId === req.user.id;
+  if (
+    payment.type !== "contact_unlock" ||
+    !paymentBelongsToCaller ||
+    metaContactId !== contact.id
+  ) {
+    throw new AppError(req.t("common.unauthorized"), 403);
+  }
+
+  await withTransaction(async (t) => {
+    // Single-use: refuse a payment already consumed by another contact.
+    const alreadyConsumed = await Contact.findOne({
+      where: { unlockPaymentId: payment.id },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (alreadyConsumed && alreadyConsumed.id !== contact.id) {
+      throw new AppError(req.t("payment.alreadyUsed"), 400);
+    }
+
+    contact.isUnlocked = true;
+    contact.unlockedAt = new Date();
+    contact.unlockPaymentId = payment.id;
+    await contact.save({
+      fields: ["isUnlocked", "unlockedAt", "unlockPaymentId"],
+      transaction: t,
+    });
+  });
 
   // Reload with fresh data to decrypt
   const unlockedContact = await Contact.findByPk(id, {

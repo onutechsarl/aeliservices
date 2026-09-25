@@ -7,6 +7,14 @@ const { User } = require('../models');
 const SESSION_TIMEOUT_HOURS = parseInt(process.env.SESSION_TIMEOUT_HOURS) || 24;
 
 /**
+ * Minimum interval between lastActivity writes, in milliseconds. Activity that
+ * happens more often than this is not persisted, which removes a per-request
+ * write without meaningfully changing the inactivity-timeout behaviour.
+ */
+const ACTIVITY_WRITE_INTERVAL_MS =
+    (parseInt(process.env.ACTIVITY_WRITE_INTERVAL_MINUTES) || 5) * 60 * 1000;
+
+/**
  * Middleware to protect routes - verifies JWT access token
  */
 const protect = async (req, res, next) => {
@@ -67,11 +75,23 @@ const protect = async (req, res, next) => {
             }
         }
 
-        // Update last activity
-        await User.update(
-            { lastActivity: new Date() },
-            { where: { id: user.id } }
-        );
+        // Update last activity, but at most once per ACTIVITY_WRITE_INTERVAL to
+        // avoid a write on every authenticated request (the previous behaviour
+        // did one SELECT + one UPDATE per call, the first bottleneck under load).
+        const now = new Date();
+        const lastActivityAge = user.lastActivity
+            ? now - new Date(user.lastActivity)
+            : Infinity;
+        if (lastActivityAge > ACTIVITY_WRITE_INTERVAL_MS) {
+            // Fire-and-forget: never block the request on this bookkeeping write.
+            User.update(
+                { lastActivity: now },
+                { where: { id: user.id } }
+            ).catch((err) => {
+                const logger = require('../utils/logger');
+                logger.debug && logger.debug(`lastActivity update failed: ${err.message}`);
+            });
+        }
 
         req.user = user;
         next();

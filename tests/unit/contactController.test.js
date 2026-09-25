@@ -18,6 +18,7 @@ const {
 jest.mock('../../src/models', () => ({
     Contact: {
         findByPk: jest.fn(),
+        findOne: jest.fn(),
         findAll: jest.fn(),
         findAndCountAll: jest.fn(),
         create: jest.fn(),
@@ -49,6 +50,10 @@ jest.mock('../../src/middlewares/errorHandler', () => ({
             this.statusCode = statusCode;
         }
     }
+}));
+
+jest.mock('../../src/utils/dbHelpers', () => ({
+    withTransaction: (cb) => cb({ LOCK: { UPDATE: 'UPDATE' } }),
 }));
 
 jest.mock('../../src/utils/helpers', () => ({
@@ -520,34 +525,70 @@ describe('Contact Controller', () => {
             mockReq.params = { id: 'contact-123' };
             mockReq.body = { transactionId: 'txn-123' };
 
+            // Payment owned by the caller, for THIS contact, of the right type.
             const mockPayment = {
                 id: 'payment-123',
-                status: 'ACCEPTED'
+                status: 'ACCEPTED',
+                type: 'contact_unlock',
+                userId: 'user-123',
+                metadata: { contactId: 'contact-123' }
             };
 
+            // Contact owned by the calling provider.
             const mockContact = {
                 id: 'contact-123',
+                isUnlocked: false,
+                unlockPaymentId: null,
+                provider: { id: 'prov-1', userId: 'user-123' },
                 save: jest.fn().mockResolvedValue()
             };
 
             Payment.findByTransactionId.mockResolvedValue(mockPayment);
-            Contact.findByPk.mockResolvedValueOnce(mockContact).mockResolvedValueOnce(mockContact);
+            Contact.findByPk
+                .mockResolvedValueOnce(mockContact) // ownership load
+                .mockResolvedValueOnce(mockContact); // reload for response
+            Contact.findOne.mockResolvedValue(null); // payment not yet consumed
 
             await confirmContactUnlock(mockReq, mockRes, mockNext);
 
             expect(mockContact.isUnlocked).toBe(true);
+            expect(mockContact.unlockPaymentId).toBe('payment-123');
             expect(mockContact.save).toHaveBeenCalled();
             expect(i18nResponse).toHaveBeenCalledWith(mockReq, mockRes, 200, 'contact.unlocked', expect.any(Object));
         });
 
-        it('should throw error if payment not confirmed', async () => {
+        it('should reject a payment issued for another contact', async () => {
+            mockReq.params = { id: 'contact-123' };
             mockReq.body = { transactionId: 'txn-123' };
 
-            const mockPayment = {
-                status: 'PENDING'
-            };
+            Contact.findByPk.mockResolvedValueOnce({
+                id: 'contact-123',
+                isUnlocked: false,
+                provider: { id: 'prov-1', userId: 'user-123' },
+                save: jest.fn()
+            });
+            Payment.findByTransactionId.mockResolvedValue({
+                id: 'payment-123',
+                status: 'ACCEPTED',
+                type: 'contact_unlock',
+                userId: 'user-123',
+                metadata: { contactId: 'a-different-contact' }
+            });
 
-            Payment.findByTransactionId.mockResolvedValue(mockPayment);
+            await expect(confirmContactUnlock(mockReq, mockRes, mockNext)).rejects.toMatchObject({ statusCode: 403 });
+        });
+
+        it('should throw error if payment not confirmed', async () => {
+            mockReq.params = { id: 'contact-123' };
+            mockReq.body = { transactionId: 'txn-123' };
+
+            Contact.findByPk.mockResolvedValueOnce({
+                id: 'contact-123',
+                isUnlocked: false,
+                provider: { id: 'prov-1', userId: 'user-123' },
+                save: jest.fn()
+            });
+            Payment.findByTransactionId.mockResolvedValue({ status: 'PENDING' });
 
             await expect(confirmContactUnlock(mockReq, mockRes, mockNext)).rejects.toThrow('payment.notConfirmed');
         });
