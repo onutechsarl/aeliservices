@@ -40,14 +40,13 @@ const User = sequelize.define('User', {
         }
     },
     lastName: {
+        // Optional (client request). Kept NOT NULL at the DB level and defaulted
+        // to an empty string so no schema migration is required; the API treats
+        // it as optional.
         type: DataTypes.STRING(100),
         allowNull: false,
-        field: 'last_name',
-        validate: {
-            notEmpty: {
-                msg: 'Le nom est requis'
-            }
-        }
+        defaultValue: '',
+        field: 'last_name'
     },
     phone: {
         type: DataTypes.STRING(200), // Increased for encrypted data

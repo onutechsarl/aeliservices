@@ -35,9 +35,11 @@ describe('Auth API', () => {
 
             expect(res.statusCode).toBe(201);
             expect(res.body.success).toBe(true);
-            expect(res.body.data.requiresOTP).toBe(true);
+            // OTP removed: the account is verified and logged in immediately.
             expect(res.body.data.user.email).toBe(testEmail);
-            expect(res.body.data.user.isEmailVerified).toBe(false);
+            expect(res.body.data.user.isEmailVerified).toBe(true);
+            expect(res.body.data.accessToken).toBeDefined();
+            expect(res.body.data.refreshToken).toBeDefined();
 
             createdUserId = res.body.data.user.id;
         });
@@ -86,7 +88,7 @@ describe('Auth API', () => {
     });
 
     describe('POST /api/auth/login', () => {
-        it('should require OTP for unverified email', async () => {
+        it('should log in directly (no OTP gate)', async () => {
             const res = await request(app)
                 .post('/api/auth/login')
                 .send({
@@ -101,7 +103,8 @@ describe('Auth API', () => {
             }
 
             expect(res.statusCode).toBe(200);
-            expect(res.body.data.requiresOTP).toBe(true);
+            expect(res.body.data.accessToken).toBeDefined();
+            expect(res.body.data.refreshToken).toBeDefined();
         });
 
         it('should reject invalid credentials', async () => {
