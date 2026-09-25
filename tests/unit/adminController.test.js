@@ -324,9 +324,9 @@ describe('Admin Controller', () => {
             expect(i18nResponse).toHaveBeenCalledWith(mockReq, mockRes, 200, 'provider.featured', { provider: mockProvider });
         });
 
-        it('should feature provider with duration', async () => {
+        it('should feature permanently and ignore any legacy duration', async () => {
             mockReq.params = { id: 'provider-123' };
-            mockReq.body = { isFeatured: true, duration: 30 };
+            mockReq.body = { isFeatured: true, duration: 30 }; // duration ignored now
             const mockProvider = {
                 id: 'provider-123',
                 save: jest.fn().mockResolvedValue(),
@@ -336,8 +336,9 @@ describe('Admin Controller', () => {
 
             await featureProvider(mockReq, mockRes, mockNext);
 
-            expect(mockProvider.featuredUntil).toBeDefined();
             expect(mockProvider.isFeatured).toBe(true);
+            // Permanent featuring: no expiry date is ever set.
+            expect(mockProvider.featuredUntil).toBeNull();
         });
 
         it('should throw error if application ID provided to featureProvider', async () => {

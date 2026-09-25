@@ -445,7 +445,7 @@ const verifyProvider = asyncHandler(async (req, res) => {
  */
 const featureProvider = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { isFeatured, duration } = req.body;
+  const { isFeatured } = req.body;
 
   const provider = await Provider.findOne({
     where: {
@@ -468,12 +468,10 @@ const featureProvider = asyncHandler(async (req, res) => {
 
   provider.isFeatured = isFeatured;
 
-  if (isFeatured && duration) {
-    // Calculate expiration date
-    provider.featuredUntil = new Date(Date.now() + duration * 24 * 60 * 60 * 1000);
-  } else if (!isFeatured) {
-    provider.featuredUntil = null; // Clear if not featured
-  }
+  // Featuring is now permanent: once an admin features a provider it stays
+  // featured until an admin explicitly removes it. featuredUntil is no longer
+  // used to expire it; it is kept null so the (retired) expiry cron is a no-op.
+  provider.featuredUntil = null;
 
   await provider.save({ fields: ["isFeatured", "featuredUntil"] });
 
