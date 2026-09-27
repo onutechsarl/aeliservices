@@ -11,7 +11,6 @@ import { Loading } from './components/global/Loading';
 const LoginScreen = lazy(() => import('./screens/LoginScreen').then(m => ({ default: m.LoginScreen })));
 const ForgotPasswordScreen = lazy(() => import('./screens/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
 const RegisterScreen = lazy(() => import('./screens/RegisterScreen').then(m => ({ default: m.RegisterScreen })));
-const OtpScreen = lazy(() => import('./screens/OtpScreen').then(m => ({ default: m.OtpScreen })));
 const Base = lazy(() => import('./screens/Base').then(m => ({ default: m.Base })));
 const HomeScreen = lazy(() => import('./screens/HomeScreen').then(m => ({ default: m.HomeScreen })));
 const ProfileScreen = lazy(() => import('./screens/ProfileScreen').then(m => ({ default: m.ProfileScreen })));
@@ -50,7 +49,6 @@ function App() {
           <Route path="/login" element={<LoginScreen />} />
           <Route path='/forgot-password' element={<ForgotPasswordScreen />} />
           <Route path="/register" element={<RegisterScreen />} />
-          <Route path="/otp" element={<OtpScreen />} />
           <Route path="/become-service-provider" element={<RegistrationProviderScreen />} />
           <Route path="/add-category" element={<AddCategorycreen />} />
           <Route path="/add-service" element={<AddServiceScreen />} />

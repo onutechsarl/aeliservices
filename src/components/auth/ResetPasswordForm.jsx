@@ -23,9 +23,6 @@ export function ResetPasswordForm() {
     // Logique des critères de validation
     const passwordCriteria = {
         hasMinLength: (formData.password || "").length >= 8,
-        hasUpperCase: /[A-Z]/.test(formData.password || ""),
-        hasLowerCase: /[a-z]/.test(formData.password || ""),
-        hasNumber: /[0-9]/.test(formData.password || ""),
         passwordsMatch: formData.password === formData.confirmPassword && (formData.confirmPassword || "") !== ""
     };
 
@@ -104,9 +101,6 @@ export function ResetPasswordForm() {
                         <ul className="space-y-2">
                             {[
                                 { label: "8 caractères minimum", met: passwordCriteria.hasMinLength },
-                                { label: "Une majuscule", met: passwordCriteria.hasUpperCase },
-                                { label: "Une minuscule", met: passwordCriteria.hasLowerCase },
-                                { label: "Un chiffre", met: passwordCriteria.hasNumber },
                                 { label: "Confirmation identique", met: passwordCriteria.passwordsMatch },
                             ].map((critere, index) => (
                                 <li

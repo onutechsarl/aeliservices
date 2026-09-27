@@ -24,13 +24,6 @@ export function RegisterForm() {
     confirmPassword: ""
   })
 
-  const isInvalid =
-    !formData.firstName ||
-    !formData.lastName ||
-    !formData.email ||
-    !formData.password ||
-    !formData.confirmPassword;
-
   /**
    * Handles handle change behavior.
    */
@@ -44,24 +37,43 @@ export function RegisterForm() {
 
   const passwordCriteria = {
     hasMinLength: (formData.password || "").length >= 8,
-    hasUpperCase: /[A-Z]/.test(formData.password || ""),
-    hasLowerCase: /[a-z]/.test(formData.password || ""),
-    hasNumber: /[0-9]/.test(formData.password || ""),
     passwordsMatch: formData.password === formData.confirmPassword && formData.confirmPassword !== ""
   };
+
+  // Only email, password and firstName are required by the API.
+  const isInvalid =
+    !formData.firstName ||
+    !formData.email ||
+    !passwordCriteria.hasMinLength ||
+    !passwordCriteria.passwordsMatch;
 
   /**
    * Handles handle submit behavior.
    */
   const handleSubmit = (e) => {
     e.preventDefault();
-    mutate(formData)
+    // confirmPassword is still sent: the new API ignores it, the old one requires it.
+    const payload = { ...formData };
+    // Optional fields are dropped when empty so the API does not validate "".
+    if (!payload.lastName.trim()) delete payload.lastName;
+    if (!String(payload.phone).trim()) delete payload.phone;
+    mutate(payload)
   }
 
   useEffect(() => {
-    if (isSuccess && data?.success) {
+    // Registration logs the user in directly: the API returns the tokens.
+    if (isSuccess && data?.success && !data?.data?.accessToken) {
+      // Old API (OTP flow still deployed): no tokens yet, the user must log in later.
       toast.success(data.message);
-      navigate("/otp");
+      navigate("/login", { replace: true });
+    }
+
+    if (isSuccess && data?.success && data?.data?.accessToken) {
+      localStorage.setItem('accessTokenAeliServices', data.data.accessToken);
+      localStorage.setItem('refreshTokenAeliServices', data.data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(data.data.user));
+      toast.success(data.message);
+      navigate("/home", { replace: true });
     }
 
     if (isError) {
@@ -76,7 +88,7 @@ export function RegisterForm() {
       }
     }
 
-  }, [isSuccess, isError, data, error]);
+  }, [isSuccess, isError, data, error, navigate]);
 
   return (
     <AuthCard
@@ -90,22 +102,21 @@ export function RegisterForm() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-6">
             <Input
-              label="Nom"
+              label="Prénom"
               type="text"
-              placeholder="Nom"
+              placeholder="Prénom"
               name="firstName"
               value={formData.firstName}
               onChange={handleChange}
               required
             />
             <Input
-              label="Prenom"
+              label="Nom (optionnel)"
               type="text"
-              placeholder="Prenom"
+              placeholder="Nom"
               name="lastName"
               value={formData.lastName}
               onChange={handleChange}
-              required
             />
             <Input
               label="Genre"
@@ -120,13 +131,12 @@ export function RegisterForm() {
               required
             />
             <Input
-              label="Téléphone"
+              label="Téléphone (optionnel)"
               type="number"
               placeholder="692 033 745"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              required
             />
           </div>
 
@@ -177,9 +187,6 @@ export function RegisterForm() {
             <ul className="space-y-2">
               {[
                 { label: "8 caractères minimum", met: passwordCriteria.hasMinLength },
-                { label: "Une majuscule", met: passwordCriteria.hasUpperCase },
-                { label: "Une minuscule", met: passwordCriteria.hasLowerCase },
-                { label: "Un chiffre", met: passwordCriteria.hasNumber },
                 { label: "Confirmation identique", met: passwordCriteria.passwordsMatch },
               ].map((critere, index) => (
                 <li

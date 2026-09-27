@@ -113,7 +113,7 @@ export function ProfileSection({ setIsRole }) {
                     </div>
 
                     <div className="flex-1 text-center sm:text-left">
-                        <h2 className="text-xl font-bold">{user?.lastName} {user?.firstName}</h2>
+                        <h2 className="text-xl font-bold">{[user?.lastName, user?.firstName].filter(Boolean).join(' ')}</h2>
                         <p className="text-purple-100 text-sm mb-4">{user?.email}</p>
                     </div>
 

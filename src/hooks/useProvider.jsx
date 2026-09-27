@@ -45,6 +45,31 @@ export const useGetProviderList = (params = {}) => {
 };
 
 /**
+ * Custom hook that manages featured providers.
+ * The API has no featured filter and caps limit at 50, so every page is read.
+ */
+export const useGetFeaturedProviders = () => {
+    return useQuery({
+        queryKey: ["useGetFeaturedProviders"],
+        queryFn: async () => {
+            const featured = [];
+            let page = 1;
+            let hasNextPage = true;
+            while (hasNextPage) {
+                const response = await request(`/api/providers?limit=50&page=${page}`, "GET");
+                const providers = response?.data?.providers || [];
+                featured.push(...providers.filter((provider) => provider.isFeatured === true));
+                hasNextPage = !!response?.data?.pagination?.hasNextPage;
+                page += 1;
+            }
+            return featured;
+        },
+        refetchOnWindowFocus: false,
+        staleTime: 5 * 60 * 1000,
+    });
+};
+
+/**
  * Custom hook that manages get provider byid.
  */
 export const useGetProviderByid = (id) => {

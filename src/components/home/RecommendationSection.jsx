@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, BarChart3, Share2 } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { RecommendationCard } from '../../ui/RecommendationCard';
-import { useGetProviderList } from '../../hooks/useProvider';
+import { useGetFeaturedProviders } from '../../hooks/useProvider';
 import { Loading } from '../global/Loading';
 
 /**
@@ -15,12 +15,7 @@ export function RecommendationSection() {
     const [activeIndex, setActiveIndex] = useState(0)
     const scrollRef = useRef(null)
 
-    const { data: providersResponse, isLoading } = useGetProviderList({
-        limit: 50 // On prend une large limite pour filtrer côté client si besoin
-    });
-
-    const allProviders = providersResponse?.data?.data?.providers || providersResponse?.data?.providers || [];
-    const featuredProviders = allProviders.filter(provider => provider.isFeatured === true);
+    const { data: featuredProviders = [], isLoading } = useGetFeaturedProviders();
 
     useEffect(() => {
         if (featuredProviders.length > 0) {

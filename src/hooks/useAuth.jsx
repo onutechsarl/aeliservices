@@ -12,26 +12,6 @@ export const useRegister = () => {
 };
 
 /**
- * Custom hook that manages otp.
- */
-export const useOtp = () => {
-    return useMutation({
-        mutationKey: ["useOtp"],
-        mutationFn: (formData) => request("/api/auth/verify-otp", "POST", formData),
-    });
-};
-
-/**
- * Custom hook that manages resend otp.
- */
-export const useResendOtp = () => {
-    return useMutation({
-        mutationKey: ["useResendOtp"],
-        mutationFn: (formData) => request("/api/auth/resend-otp", "POST", formData),
-    });
-};
-
-/**
  * Custom hook that manages login.
  */
 export const useLogin = () => {

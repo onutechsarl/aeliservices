@@ -176,8 +176,12 @@ export function ServiceProvider({ mode, dataConsult, slug, setModelinkslug }) {
         const resolvedProvider = provider || dataConsult;
         if (!resolvedProvider?.id) return;
 
+        // The detail route may hide contacts for unsubscribed providers; the list route
+        // (passed here as dataConsult) still returns them.
         const payload = {
             ...resolvedProvider,
+            whatsapp: resolvedProvider.whatsapp || dataConsult?.whatsapp || null,
+            businessContact: resolvedProvider.businessContact || dataConsult?.businessContact || null,
             selectedService: service
         };
 

@@ -161,7 +161,7 @@ export function Header({ onOpenMenu, openSidebar, filters, setFilters }) {
         </Button>
         <div onClick={() => navigate("/profile")} className='w-14 cursor-pointer hidden md:block'>
           <img
-            src={user?.profilePhoto || `https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=random&color=fff&size=128`}
+            src={user?.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${user?.firstName || ''} ${user?.lastName || ''}`.trim())}&background=random&color=fff&size=128`}
             alt="Profile"
             className="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-sm hover:scale-105 transition-transform"
           />

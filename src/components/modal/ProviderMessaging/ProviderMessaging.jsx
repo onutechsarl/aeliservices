@@ -24,7 +24,7 @@ export function ProviderMessaging({ closeMessaging }) {
             if (!groups[email]) {
                 groups[email] = {
                     id: email,
-                    name: `${contact.sender?.firstName} ${contact.sender?.lastName}` || contact.senderName,
+                    name: `${contact.sender?.firstName || ''} ${contact.sender?.lastName || ''}`.trim() || contact.senderName,
                     avatar: contact.sender?.profilePhoto,
                     isOnline: true,
                     messages: []

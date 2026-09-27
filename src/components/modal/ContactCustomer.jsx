@@ -38,7 +38,7 @@ export function ContactCustomer({ closeContact, dataContact }) {
     setFormData((prev) => ({
       ...prev,
       providerId: dataContact?.id || "",
-      senderName: `${user?.firstName} ${user?.lastName}` || "",
+      senderName: `${user?.firstName || ""} ${user?.lastName || ""}`.trim(),
       senderEmail: user?.email || "",
       senderPhone: user?.phone || ""
     }));
@@ -81,6 +81,8 @@ export function ContactCustomer({ closeContact, dataContact }) {
       }
     }
   }, [isSuccessContact, isErrorContact, dataResponse, errorResponse, closeContact]);
+
+  const whatsappNumber = dataContact?.whatsapp || "";
 
   if (showFeedbackCard) {
     return (
@@ -189,74 +191,74 @@ export function ContactCustomer({ closeContact, dataContact }) {
         </div>
 
         { }
-        {dataContact?.subscriptionActive && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            { }
-            <div className="bg-white p-6 rounded-2xl shadow-lg flex flex-col transition-transform hover:-translate-y-1 duration-300">
-              <div className="flex items-center gap-3 mb-4">
-                <h3 className="font-bold text-lg text-gray-700 pacifico-regular">WhatsApp</h3>
-              </div>
-              <p className="text-gray-500 text-sm mb-6 flex-grow">
-                {dataContact?.whatsapp
-                  ? "Réponse rapide pour vos questions urgentes."
-                  : "Le numéro WhatsApp n'est pas renseigné par ce prestataire."}
-              </p>
-              <Button
-                variant="whatsapp"
-                disabled={!dataContact?.whatsapp}
-                onClick={() => {
-                  if (dataContact?.whatsapp) {
-                    const cleanNumber = dataContact.whatsapp.replace(/\D/g, '');
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          { }
+          <div className="bg-white p-6 rounded-2xl shadow-lg flex flex-col transition-transform hover:-translate-y-1 duration-300">
+            <div className="flex items-center gap-3 mb-4">
+              <h3 className="font-bold text-lg text-gray-700 pacifico-regular">WhatsApp</h3>
+            </div>
+            <p className="text-gray-500 text-sm mb-6 flex-grow">
+              {whatsappNumber
+                ? "Réponse rapide pour vos questions urgentes."
+                : "Le numéro WhatsApp n'est pas renseigné par ce prestataire."}
+            </p>
+            <Button
+              variant="whatsapp"
+              disabled={!whatsappNumber}
+              onClick={() => {
+                if (whatsappNumber) {
+                  let cleanNumber = whatsappNumber.replace(/\D/g, '');
+                  // wa.me needs the country code: local Cameroon numbers have 9 digits.
+                  if (cleanNumber.length === 9) cleanNumber = `${cleanNumber}`;
 
-                    const s = dataContact?.selectedService;
+                  const s = dataContact?.selectedService;
 
-                    const messageBrut = s
-                      ? `
+                  const messageBrut = s
+                    ? `
 Salut, je suis intéressé par votre service sur Aeli Service :
 *Service :* ${s.name}
 *Prix :* ${s.price ? s.price + ' FCFA' : 'Sur devis'}
 *Description :* ${s.description || '/'}
 
 J'aimerais avoir plus d'informations à ce sujet. Merci !`
-                      : `Salut, je suis intéressé par vos services sur Aeli Service. J'aimerais avoir plus d'informations. Merci !`;
+                    : `Salut, je suis intéressé par vos services sur Aeli Service. J'aimerais avoir plus d'informations. Merci !`;
 
-                    const messageEncoded = encodeURIComponent(messageBrut);
+                  const messageEncoded = encodeURIComponent(messageBrut);
 
-                    window.open(`https://wa.me/${cleanNumber}?text=${messageEncoded}`, '_blank');
-                  }
-                }}
-                className={`w-full gap-2 py-3 ${!dataContact?.whatsapp ? 'bg-gray-300 cursor-not-allowed opacity-70 grayscale' : ''}`}
-              >
-                <MessageCircle className="w-6 h-6" />
-                {dataContact?.whatsapp ? "Ouvrir WhatsApp" : "Indisponible"}
-              </Button>
-            </div>
-
-            { }
-            <div className="bg-white p-6 rounded-2xl shadow-lg flex flex-col transition-transform hover:-translate-y-1 duration-300">
-              <div className="flex items-center gap-3 mb-4">
-                <h3 className="font-bold text-lg text-gray-700 pacifico-regular">Appel direct</h3>
-              </div>
-              <p className="text-gray-500 text-sm mb-6 flex-grow">
-                Disponibilité immédiate par téléphone.
-              </p>
-
-              <Button
-                variant="phone"
-                className={`w-full gap-2 py-3 ${!dataContact?.businessContact ? 'opacity-50 cursor-not-allowed' : ''}`}
-                disabled={!dataContact?.businessContact}
-                onClick={() => {
-
-                  const cleanPhone = dataContact.businessContact.replace(/\s/g, '');
-                  window.location.href = `tel:${cleanPhone}`;
-                }}
-              >
-                <Phone className="w-6 h-6" />
-                {dataContact?.businessContact ? "Appeler maintenant" : "Indisponible"}
-              </Button>
-            </div>
+                  window.open(`https://wa.me/${cleanNumber}?text=${messageEncoded}`, '_blank');
+                }
+              }}
+              className={`w-full gap-2 py-3 ${!whatsappNumber ? 'bg-gray-300 cursor-not-allowed opacity-70 grayscale' : ''}`}
+            >
+              <MessageCircle className="w-6 h-6" />
+              {whatsappNumber ? "Ouvrir WhatsApp" : "Indisponible"}
+            </Button>
           </div>
-        )}
+
+          { }
+          <div className="bg-white p-6 rounded-2xl shadow-lg flex flex-col transition-transform hover:-translate-y-1 duration-300">
+            <div className="flex items-center gap-3 mb-4">
+              <h3 className="font-bold text-lg text-gray-700 pacifico-regular">Appel direct</h3>
+            </div>
+            <p className="text-gray-500 text-sm mb-6 flex-grow">
+              Disponibilité immédiate par téléphone.
+            </p>
+
+            <Button
+              variant="phone"
+              className={`w-full gap-2 py-3 ${!dataContact?.businessContact ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={!dataContact?.businessContact}
+              onClick={() => {
+
+                const cleanPhone = dataContact.businessContact.replace(/\s/g, '');
+                window.location.href = `tel:${cleanPhone}`;
+              }}
+            >
+              <Phone className="w-6 h-6" />
+              {dataContact?.businessContact ? "Appeler maintenant" : "Indisponible"}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   )
