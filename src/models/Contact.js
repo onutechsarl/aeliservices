@@ -150,28 +150,11 @@ const Contact = sequelize.define('Contact', {
  * @returns {Promise<boolean>}
  */
 Contact.prototype.canBeViewedBy = async function (user) {
-    // Admin can view everything
-    if (user && user.role === 'admin') return true;
-
-    // If already unlocked
-    if (this.isUnlocked) return true;
-
-    // Check if provider has active subscription (auto-unlock)
-    const { Provider, Subscription } = require('./');
-    const provider = await Provider.findOne({
-        where: { id: this.providerId },
-        include: [{ model: Subscription, as: 'subscription' }]
-    });
-
-    if (provider && provider.subscription && provider.subscription.isActive()) {
-        // Auto-unlock if subscription active
-        this.isUnlocked = true;
-        this.unlockedAt = new Date();
-        await this.save();
-        return true;
-    }
-
-    return false;
+    // Pay-per-view has been removed (client request): the recipient provider
+    // can always read the full message and the sender's contact details, with
+    // no subscription and no unlock payment required. Kept as a method so the
+    // restriction can be reinstated later without touching the callers.
+    return true;
 };
 
 /**

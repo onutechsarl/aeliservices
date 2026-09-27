@@ -32,7 +32,8 @@ const createContact = asyncHandler(async (req, res) => {
     throw new AppError(req.t("provider.notFound"), 404);
   }
 
-  // Create contact request
+  // Create contact request. Messages are unlocked by default now that the
+  // pay-per-view restriction has been removed (client request).
   const contact = await Contact.create({
     userId: req.user ? req.user.id : null,
     providerId,
@@ -40,17 +41,9 @@ const createContact = asyncHandler(async (req, res) => {
     senderName,
     senderEmail,
     senderPhone,
-    isUnlocked: false, // Par défaut verrouillé
+    isUnlocked: true,
+    unlockedAt: new Date(),
   });
-
-  // Auto-unlock if provider has active subscription
-  const { Subscription } = require("../models");
-  const subscription = await Subscription.findOne({ where: { providerId } });
-  if (subscription && subscription.isActive()) {
-    contact.isUnlocked = true;
-    contact.unlockedAt = new Date();
-    await contact.save();
-  }
 
   // Increment provider's contact count
   await provider.incrementContacts();
@@ -119,17 +112,25 @@ const getReceivedContacts = asyncHandler(async (req, res) => {
 
   const pagination = getPaginationData(page, queryLimit, count);
 
-  // Check unlock status and mask data if needed
-  const processedContacts = await Promise.all(
-    contacts.map(async (contact) => {
-      const canView = await contact.canBeViewedBy(req.user);
-      if (canView) {
-        return contact;
-      } else {
-        return contact.getMaskedData();
-      }
-    })
-  );
+  // Pay-per-view removed: every message is fully visible to its provider.
+  // Rows created while the lock was active are normalized to "unlocked".
+  // We use a bulk UPDATE (no per-row hooks) so the decrypted sender fields on
+  // the loaded instances are preserved, then reflect the change in memory
+  // without re-saving (which would re-encrypt those fields).
+  const staleIds = contacts.filter((c) => !c.isUnlocked).map((c) => c.id);
+  if (staleIds.length > 0) {
+    await Contact.update(
+      { isUnlocked: true, unlockedAt: new Date() },
+      { where: { id: staleIds, isUnlocked: false } }
+    );
+  }
+  const processedContacts = contacts.map((contact) => {
+    if (!contact.isUnlocked) {
+      contact.setDataValue("isUnlocked", true);
+      if (!contact.unlockedAt) contact.setDataValue("unlockedAt", new Date());
+    }
+    return contact;
+  });
 
   i18nResponse(req, res, 200, "contact.list", {
     contacts: processedContacts,

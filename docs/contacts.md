@@ -18,32 +18,22 @@ Les clients peuvent envoyer des demandes de contact aux prestataires. Ces demand
 - Les **emails** et **téléphones** des clients sont **chiffrés** en base de données (AES-256-GCM)
 - Seul le prestataire destinataire peut voir les coordonnées
 
-### 💰 Système Pay-Per-View (Nouveau)
+### 🔓 Messages entièrement visibles (pay-per-view retiré)
+
+> **La restriction « message payant » a été retirée (demande client).**
+> Le prestataire destinataire voit **toujours** le message complet et les
+> coordonnées du client, **sans abonnement et sans paiement**.
 
 **Principe :**
-- Les clients peuvent **toujours** envoyer des messages aux prestataires, même sans abonnement actif
-- Les messages sont créés **verrouillés par défaut** (`isUnlocked: false`)
-- Les prestataires **sans abonnement** voient les coordonnées **masquées**
-- Pour débloquer un message : **2 options**
-  - 💳 **Payer 500 FCFA** pour CE message uniquement
-  - 📦 **Souscrire un abonnement** → tous les messages débloqués automatiquement
+- Les clients envoient des messages aux prestataires (avec ou sans compte).
+- Les messages sont créés **déverrouillés** (`isUnlocked: true`).
+- Plus aucun masquage des coordonnées, plus de paiement de 500 FCFA.
+- Les messages créés avant ce changement sont **normalisés automatiquement**
+  en « déverrouillé » au premier chargement de `GET /received`.
 
-**Débloquage automatique :**
-- Si le prestataire a un abonnement actif → message débloqué immédiatement
-- `isUnlocked = true`, `unlockedAt = NOW()`
-
-**Message verrouillé (aperçu) :**
-```json
-{
-  "messagePreview": "Bonjour, je voudrais prendre rendez-v...",
-  "senderName": "Fatou Kamga",
-  "senderEmail": "f***@***",
-  "senderPhone": "+237 6** *** ***",
-  "isUnlocked": false,
-  "unlockPrice": 500,
-  "needsUnlock": true
-}
-```
+Les points d'entrée `POST /:id/unlock` et `POST /:id/unlock/confirm` existent
+encore mais sont **inutiles** : comme tout est déjà visible, `POST /:id/unlock`
+répond « déjà débloqué » (400). Ils pourront être retirés d'une future version.
 
 ---
 
@@ -59,11 +49,10 @@ Envoie une demande de contact à un prestataire. Peut être utilisé par des vis
 **Ce qu'il fait :**
 1. Vérifie que le prestataire existe (pas besoin d'abonnement actif)
 2. Chiffre les coordonnées du client (email, téléphone)
-3. Crée l'enregistrement Contact **verrouillé** (`isUnlocked: false`)
-4. **Si abonnement actif** → débloque automatiquement le message
-5. Incrémente le compteur de contacts du prestataire
-6. Envoie un email de notification au prestataire
-7. Envoie un email de confirmation au client
+3. Crée l'enregistrement Contact **déverrouillé** (`isUnlocked: true`)
+4. Incrémente le compteur de contacts du prestataire
+5. Envoie un email de notification au prestataire
+6. Envoie un email de confirmation au client
 
 **Rate Limiting :** 5 contacts / heure par IP
 
@@ -125,10 +114,8 @@ Récupère la liste des demandes de contact reçues par le prestataire connecté
 
 **Ce qu'il fait :**
 - Retourne les contacts avec pagination
-- **Vérifie le statut de débloquage** pour chaque message
-- Si **verrouillé** → masque les coordonnées avec aperçu
-- Si **abonnement actif** → débloque automatiquement
-- Peut filtrer par statut
+- Chaque message est renvoyé **entièrement** (message complet + coordonnées déchiffrées) — plus de masquage
+- Normalise en « déverrouillé » les anciens messages encore marqués verrouillés
 - Peut filtrer par statut
 
 **Paramètres query :**
@@ -239,7 +226,12 @@ GET /api/contacts/by-date/2026-01-15
 
 ---
 
-## 💰 4. DÉBLOQUAGE PAYANT (Pay-Per-View)
+## 💰 4. DÉBLOQUAGE PAYANT (Pay-Per-View) — ⚠️ DÉPRÉCIÉ
+
+> **Ces endpoints sont dépréciés.** La restriction « message payant » a été
+> retirée : tous les messages sont déjà visibles par le prestataire.
+> `POST /:id/unlock` répond désormais « déjà débloqué » (400). La section
+> ci-dessous est conservée pour référence historique uniquement.
 
 ### `POST /:id/unlock` - Initier le débloquage d'un message
 
