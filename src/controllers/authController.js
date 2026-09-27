@@ -6,31 +6,19 @@ const { sendEmail } = require("../config/email");
 const {
   welcomeEmail,
   passwordResetEmail,
-  otpEmail,
 } = require("../utils/emailTemplates");
 const {
   generateResetToken,
   hashToken,
   i18nResponse,
-  successResponse,
   sendEmailSafely,
   getFrontendUrl,
 } = require("../utils/helpers");
-const {
-  generateOTP,
-  hashOTP,
-  verifyOTP,
-  getOTPExpiry,
-  isOTPExpired,
-} = require("../utils/otp");
 const logger = require("../utils/logger");
 const referralReward = require("../services/referralReward");
-const { getSetting } = require("../utils/settings");
 const {
   handleFailedLogin,
   handleSuccessfulLogin,
-  handleFailedOTP,
-  handleSuccessfulOTP,
   logSecurityEvent,
 } = require("../middlewares/security");
 const { auditLogger } = require("../middlewares/audit");
@@ -60,7 +48,6 @@ const register = asyncHandler(async (req, res) => {
   const {
     email,
     password,
-    confirmPassword,
     firstName,
     lastName,
     phone,
@@ -69,10 +56,8 @@ const register = asyncHandler(async (req, res) => {
     referralCode,
   } = req.body;
 
-  // Validate confirmPassword
-  if (password !== confirmPassword) {
-    throw new AppError(req.t("validation.passwordMismatch"), 400);
-  }
+  // Password confirmation is now handled by the frontend only; the server no
+  // longer requires a confirmPassword field.
 
   // Check if user already exists
   const existingUser = await User.findOne({ where: { email } });
@@ -97,22 +82,23 @@ const register = asyncHandler(async (req, res) => {
     }
   }
 
-  // Create user (email not verified)
+  // Create the user. Email verification by one-time code has been removed
+  // (client request): the account is usable immediately.
   const user = await User.create({
     email,
     password,
     firstName,
-    lastName,
+    lastName: lastName || "",
     phone,
     country: country || "Cameroun",
     gender,
     role: "client", // All users start as clients, can apply to become provider
-    isEmailVerified: false,
+    isEmailVerified: true,
   });
 
-  // Record the referral as pending. The bonus is applied later by the
-  // referralReward service; the exact moment depends on the platform setting
-  // `referral.requireEmailVerified` (default true → wait for OTP verification).
+  // Record the referral and attempt the reward now. With OTP verification gone,
+  // registration is the trigger point. Both steps are best-effort and never
+  // block the signup.
   if (referrer && referrer.id !== user.id) {
     try {
       await Referral.create({
@@ -122,13 +108,9 @@ const register = asyncHandler(async (req, res) => {
         status: "pending",
       });
 
-      // If the gate is disabled, attempt the reward immediately.
-      const requireVerified = await getSetting('referral.requireEmailVerified', true);
-      if (!requireVerified) {
-        referralReward
-          .attemptReward(user.id, { req })
-          .catch((err) => logger.error('Referral reward failed', { error: err.message }));
-      }
+      referralReward
+        .attemptReward(user.id, { req })
+        .catch((err) => logger.error("Referral reward failed", { error: err.message }));
     } catch (err) {
       logger.warn("Could not record referral", {
         referrerId: referrer.id,
@@ -138,85 +120,9 @@ const register = asyncHandler(async (req, res) => {
     }
   }
 
-  // Generate and send OTP
-  const otp = generateOTP();
-  user.otpCode = await hashOTP(otp);
-  user.otpExpires = getOTPExpiry();
-  user.otpAttempts = 0;
-  await user.save({ fields: ["otpCode", "otpExpires", "otpAttempts"] });
-
-  // Send OTP email (optional - don't fail if email system is down)
-  await sendEmailSafely(
-    {
-      to: user.email,
-      ...otpEmail({ firstName: user.firstName, otp }),
-    },
-    "OTP registration"
-  );
-
-  await logSecurityEvent(
-    "otp_sent",
-    req,
-    user.id,
-    { action: "registration" },
-    true
-  );
-
-  i18nResponse(req, res, 201, "auth.registered", {
-    user: {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      role: user.role,
-      isEmailVerified: false,
-    },
-    requiresOTP: true,
-    referralAccepted: !!(referrer && referrer.id !== user.id),
-  });
-});
-
-/**
- * @desc    Verify OTP code
- * @route   POST /api/auth/verify-otp
- * @access  Public
- */
-const verifyOTPCode = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
-
-  const user = await User.findOne({ where: { email } });
-  if (!user) {
-    throw new AppError(req.t("user.notFound"), 404);
-  }
-
-  if (user.isEmailVerified) {
-    throw new AppError(req.t("auth.otpVerified"), 400);
-  }
-
-  if (!user.otpCode || !user.otpExpires) {
-    throw new AppError(req.t("auth.otpInvalid"), 400);
-  }
-
-  if (isOTPExpired(user.otpExpires)) {
-    throw new AppError(req.t("auth.otpExpired"), 400);
-  }
-
-  const isValid = await verifyOTP(otp, user.otpCode);
-  if (!isValid) {
-    const canRetry = await handleFailedOTP(user, req);
-    if (!canRetry) {
-      throw new AppError(req.t("auth.otpMaxAttempts"), 400);
-    }
-    throw new AppError(req.t("auth.otpInvalid"), 400);
-  }
-
-  // OTP is valid
-  await handleSuccessfulOTP(user, req);
-
-  // Generate tokens
+  // Log the user in immediately by issuing tokens.
   const accessToken = generateAccessToken(user.id);
   const refreshToken = generateRefreshToken();
-
-  // Save refresh token
   await RefreshToken.create({
     userId: user.id,
     token: refreshToken,
@@ -225,7 +131,7 @@ const verifyOTPCode = asyncHandler(async (req, res) => {
     ipAddress: req.ip,
   });
 
-  // Send welcome email (optional - don't fail if email system is down)
+  // Welcome email (optional - don't fail if email system is down)
   await sendEmailSafely(
     {
       to: user.email,
@@ -234,62 +140,12 @@ const verifyOTPCode = asyncHandler(async (req, res) => {
     "Welcome"
   );
 
-  // Trigger referral reward (best-effort, never blocks the response).
-  // The configured trigger gate is read inside attemptReward — when the
-  // platform setting `referral.requireEmailVerified` is true (default), the
-  // bonus is applied here. The function is idempotent and a no-op if there
-  // is no pending referral for this user.
-  const requireVerified = await getSetting('referral.requireEmailVerified', true);
-  if (requireVerified) {
-    referralReward
-      .attemptReward(user.id, { req })
-      .catch((err) => logger.error('Referral reward failed', { error: err.message }));
-  }
-
-  i18nResponse(req, res, 200, "auth.otpVerified", {
+  i18nResponse(req, res, 201, "auth.registered", {
     user: user.toPublicJSON(),
     accessToken,
     refreshToken,
+    referralAccepted: !!(referrer && referrer.id !== user.id),
   });
-});
-
-/**
- * @desc    Resend OTP code
- * @route   POST /api/auth/resend-otp
- * @access  Public
- */
-const resendOTP = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-
-  const user = await User.findOne({ where: { email } });
-  if (!user) {
-    // Don't reveal if user exists
-    return i18nResponse(req, res, 200, "auth.otpSent");
-  }
-
-  if (user.isEmailVerified) {
-    throw new AppError(req.t("auth.otpVerified"), 400);
-  }
-
-  // Generate new OTP
-  const otp = generateOTP();
-  user.otpCode = await hashOTP(otp);
-  user.otpExpires = getOTPExpiry();
-  user.otpAttempts = 0;
-  await user.save({ fields: ["otpCode", "otpExpires", "otpAttempts"] });
-
-  // Send OTP email (optional - don't fail if email system is down)
-  await sendEmailSafely(
-    {
-      to: user.email,
-      ...otpEmail({ firstName: user.firstName, otp }),
-    },
-    "OTP resend"
-  );
-
-  await logSecurityEvent("otp_sent", req, user.id, { action: "resend" }, true);
-
-  i18nResponse(req, res, 200, "auth.otpSent");
 });
 
 /**
@@ -318,29 +174,8 @@ const login = asyncHandler(async (req, res) => {
     throw new AppError(req.t("auth.invalidCredentials"), 401);
   }
 
-  // Check if email is verified
-  if (!user.isEmailVerified) {
-    // Generate new OTP for unverified users
-    const otp = generateOTP();
-    user.otpCode = await hashOTP(otp);
-    user.otpExpires = getOTPExpiry();
-    user.otpAttempts = 0;
-    await user.save({ fields: ["otpCode", "otpExpires", "otpAttempts"] });
-
-    // Send OTP email (optional - don't fail if email system is down)
-    await sendEmailSafely(
-      {
-        to: user.email,
-        ...otpEmail({ firstName: user.firstName, otp }),
-      },
-      "OTP login"
-    );
-
-    return i18nResponse(req, res, 200, "auth.emailNotVerified", {
-      requiresOTP: true,
-      email: user.email,
-    });
-  }
+  // Email verification by one-time code has been removed; accounts are usable
+  // as soon as they are created, so there is no verification gate at login.
 
   // Login successful
   await handleSuccessfulLogin(user, req);
@@ -602,8 +437,6 @@ const getMe = asyncHandler(async (req, res) => {
 
 module.exports = {
   register,
-  verifyOTPCode,
-  resendOTP,
   login,
   refreshAccessToken,
   logout,

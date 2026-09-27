@@ -16,7 +16,7 @@
     "invalidDecision": "Décision invalide. Choisissez: approved ou rejected"
   },
   "auth": {
-    "registered": "Inscription réussie. Vérifiez votre email.",
+    "registered": "Inscription réussie.",
     "loginSuccess": "Connexion réussie",
     "logoutSuccess": "Déconnexion réussie",
     "logoutAllSuccess": "Déconnexion de tous les appareils réussie",

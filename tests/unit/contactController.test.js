@@ -21,6 +21,7 @@ jest.mock('../../src/models', () => ({
         findAll: jest.fn(),
         findAndCountAll: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
         count: jest.fn(),
         findByTransactionId: jest.fn()
     },
@@ -146,26 +147,28 @@ describe('Contact Controller', () => {
             const mockContact = {
                 id: 'contact-123',
                 ...contactData,
-                isUnlocked: false,
+                isUnlocked: true,
                 save: jest.fn().mockResolvedValue()
             };
 
             Provider.findByPk.mockResolvedValue(mockProvider);
             Contact.create.mockResolvedValue(mockContact);
-            Subscription.findOne.mockResolvedValue(null); // No active subscription
 
             await createContact(mockReq, mockRes, mockNext);
 
             expect(Provider.findByPk).toHaveBeenCalledWith('provider-123', expect.any(Object));
-            expect(Contact.create).toHaveBeenCalledWith({
-                userId: 'user-123',
-                providerId: 'provider-123',
-                message: 'Hello',
-                senderName: 'John Doe',
-                senderEmail: 'john@example.com',
-                senderPhone: '+1234567890',
-                isUnlocked: false
-            });
+            // Pay-per-view removed: messages are created unlocked.
+            expect(Contact.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userId: 'user-123',
+                    providerId: 'provider-123',
+                    message: 'Hello',
+                    senderName: 'John Doe',
+                    senderEmail: 'john@example.com',
+                    senderPhone: '+1234567890',
+                    isUnlocked: true,
+                })
+            );
             expect(mockProvider.incrementContacts).toHaveBeenCalled();
             expect(emitNewContact).toHaveBeenCalled();
             expect(i18nResponse).toHaveBeenCalledWith(mockReq, mockRes, 201, 'contact.sent', { contact: mockContact });
@@ -185,18 +188,30 @@ describe('Contact Controller', () => {
             mockReq.query = { page: 1, limit: 10 };
 
             const mockProvider = { id: 'provider-123' };
+            const setDataValue = function (k, v) { this[k] = v; };
             const mockContacts = {
                 count: 5,
                 rows: [
-                    { id: 'contact-1', canBeViewedBy: jest.fn().mockResolvedValue(true), getMaskedData: jest.fn() },
-                    { id: 'contact-2', canBeViewedBy: jest.fn().mockResolvedValue(false), getMaskedData: jest.fn().mockReturnValue({ id: 'contact-2', masked: true }) }
+                    // Already unlocked: returned as-is.
+                    { id: 'contact-1', isUnlocked: true, setDataValue },
+                    // Legacy locked row: normalized to unlocked on fetch.
+                    { id: 'contact-2', isUnlocked: false, setDataValue }
                 ]
             };
 
             Provider.findOne.mockResolvedValue(mockProvider);
             Contact.findAndCountAll.mockResolvedValue(mockContacts);
+            Contact.update.mockResolvedValue([1]);
 
             await getReceivedContacts(mockReq, mockRes, mockNext);
+
+            // Legacy locked rows are normalized via a bulk UPDATE and reflected
+            // in the response, without re-saving each instance.
+            expect(Contact.update).toHaveBeenCalledWith(
+                expect.objectContaining({ isUnlocked: true }),
+                expect.objectContaining({ where: expect.objectContaining({ id: ['contact-2'] }) })
+            );
+            expect(mockContacts.rows[1].isUnlocked).toBe(true);
 
             expect(Provider.findOne).toHaveBeenCalledWith({ where: { userId: 'user-123' } });
             expect(Contact.findAndCountAll).toHaveBeenCalledWith({

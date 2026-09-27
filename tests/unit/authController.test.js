@@ -5,8 +5,6 @@
 
 const {
   register,
-  verifyOTPCode,
-  resendOTP,
   login,
   refreshAccessToken,
   logout,
@@ -72,19 +70,9 @@ jest.mock("../../src/utils/helpers", () => ({
   getFrontendUrl: jest.fn(() => "http://localhost:5173"),
 }));
 
-jest.mock("../../src/utils/otp", () => ({
-  generateOTP: jest.fn(),
-  hashOTP: jest.fn(),
-  verifyOTP: jest.fn(),
-  getOTPExpiry: jest.fn(),
-  isOTPExpired: jest.fn(),
-}));
-
 jest.mock("../../src/middlewares/security", () => ({
   handleFailedLogin: jest.fn(),
   handleSuccessfulLogin: jest.fn(),
-  handleFailedOTP: jest.fn(),
-  handleSuccessfulOTP: jest.fn(),
   logSecurityEvent: jest.fn(),
 }));
 
@@ -109,18 +97,10 @@ const { User, Provider, RefreshToken } = require("../../src/models");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { i18nResponse } = require("../../src/utils/helpers");
-const {
-  generateOTP,
-  hashOTP,
-  verifyOTP,
-  getOTPExpiry,
-  isOTPExpired,
-} = require("../../src/utils/otp");
+const referralReward = require("../../src/services/referralReward");
 const {
   handleFailedLogin,
   handleSuccessfulLogin,
-  handleFailedOTP,
-  handleSuccessfulOTP,
   logSecurityEvent,
 } = require("../../src/middlewares/security");
 const { auditLogger } = require("../../src/middlewares/audit");
@@ -151,23 +131,15 @@ describe("Auth Controller", () => {
     // Setup default mocks
     jwt.sign.mockReturnValue("access-token");
     crypto.randomBytes.mockReturnValue(Buffer.from("refresh-token"));
-    generateOTP.mockReturnValue("123456");
-    hashOTP.mockResolvedValue("hashed-otp");
-    getOTPExpiry.mockReturnValue(new Date(Date.now() + 10 * 60 * 1000));
-    isOTPExpired.mockReturnValue(false);
-    verifyOTP.mockResolvedValue(true);
     i18nResponse.mockImplementation(() => { });
-    handleSuccessfulOTP.mockResolvedValue();
-    handleFailedOTP.mockResolvedValue(true);
     logSecurityEvent.mockResolvedValue();
   });
 
   describe("register", () => {
-    it("should register a new user successfully", async () => {
+    it("should register a new user successfully (verified + logged in)", async () => {
       const userData = {
         email: "test@example.com",
         password: "password123",
-        confirmPassword: "password123",
         firstName: "John",
         lastName: "Doe",
         phone: "+237699123456",
@@ -181,58 +153,63 @@ describe("Auth Controller", () => {
         email: userData.email,
         firstName: userData.firstName,
         role: "client",
-        save: jest.fn().mockResolvedValue(),
+        toPublicJSON: jest.fn().mockReturnValue({ id: "user-123" }),
       };
 
       User.findOne.mockResolvedValue(null);
       User.create.mockResolvedValue(mockUser);
+      RefreshToken.create.mockResolvedValue();
 
       await register(mockReq, mockRes, mockNext);
 
       expect(User.findOne).toHaveBeenCalledWith({
         where: { email: userData.email },
       });
-      expect(User.create).toHaveBeenCalledWith({
-        email: userData.email,
-        password: userData.password,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        phone: userData.phone,
-        country: "Cameroun",
-        gender: "male",
-        role: "client",
-        isEmailVerified: false,
-      });
-      expect(mockUser.save).toHaveBeenCalledWith({
-        fields: ["otpCode", "otpExpires", "otpAttempts"],
-      });
+      // Created verified and usable immediately; no OTP.
+      expect(User.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: userData.email,
+          password: userData.password,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          role: "client",
+          isEmailVerified: true,
+        })
+      );
+      // Logged in on registration: a refresh token is issued.
+      expect(RefreshToken.create).toHaveBeenCalled();
       expect(i18nResponse).toHaveBeenCalledWith(
         mockReq,
         mockRes,
         201,
         "auth.registered",
         expect.objectContaining({
-          user: expect.objectContaining({
-            id: mockUser.id,
-            email: mockUser.email,
-            firstName: mockUser.firstName,
-            role: "client",
-            isEmailVerified: false,
-          }),
-          requiresOTP: true,
+          user: { id: "user-123" },
+          accessToken: expect.any(String),
+          refreshToken: expect.any(String),
         })
       );
     });
 
-    it("should throw error if passwords do not match", async () => {
+    it("should default a missing lastName to an empty string", async () => {
       mockReq.body = {
-        email: "test@example.com",
+        email: "nolast@example.com",
         password: "password123",
-        confirmPassword: "different123",
+        firstName: "Solo",
       };
 
-      await expect(register(mockReq, mockRes, mockNext)).rejects.toThrow(
-        "validation.passwordMismatch"
+      const mockUser = {
+        id: "user-nolast",
+        toPublicJSON: jest.fn().mockReturnValue({ id: "user-nolast" }),
+      };
+      User.findOne.mockResolvedValue(null);
+      User.create.mockResolvedValue(mockUser);
+      RefreshToken.create.mockResolvedValue();
+
+      await register(mockReq, mockRes, mockNext);
+
+      expect(User.create).toHaveBeenCalledWith(
+        expect.objectContaining({ lastName: "" })
       );
     });
 
@@ -240,7 +217,6 @@ describe("Auth Controller", () => {
       mockReq.body = {
         email: "existing@example.com",
         password: "password123",
-        confirmPassword: "password123",
       };
 
       User.findOne.mockResolvedValue({ id: "existing-user" });
@@ -255,7 +231,6 @@ describe("Auth Controller", () => {
       mockReq.body = {
         email: "newbie@example.com",
         password: "password123",
-        confirmPassword: "password123",
         firstName: "Newbie",
         lastName: "User",
         referralCode: "aeli-abc123", // lowercased input — must be normalized
@@ -271,10 +246,11 @@ describe("Auth Controller", () => {
         email: "newbie@example.com",
         firstName: "Newbie",
         role: "client",
-        save: jest.fn().mockResolvedValue(),
+        toPublicJSON: jest.fn().mockReturnValue({ id: "user-456" }),
       };
       User.create.mockResolvedValue(mockUser);
       Referral.create.mockResolvedValue();
+      RefreshToken.create.mockResolvedValue();
 
       await register(mockReq, mockRes, mockNext);
 
@@ -287,6 +263,10 @@ describe("Auth Controller", () => {
         referredUserId: "user-456",
         codeUsed: "AELI-ABC123",
         status: "pending",
+      });
+      // Reward is attempted at registration now (OTP gate removed).
+      expect(referralReward.attemptReward).toHaveBeenCalledWith("user-456", {
+        req: mockReq,
       });
       expect(i18nResponse).toHaveBeenCalledWith(
         mockReq,
@@ -302,7 +282,6 @@ describe("Auth Controller", () => {
       mockReq.body = {
         email: "newbie@example.com",
         password: "password123",
-        confirmPassword: "password123",
         firstName: "Newbie",
         lastName: "User",
         referralCode: "AELI-NOPE99",
@@ -318,9 +297,10 @@ describe("Auth Controller", () => {
         email: "newbie@example.com",
         firstName: "Newbie",
         role: "client",
-        save: jest.fn().mockResolvedValue(),
+        toPublicJSON: jest.fn().mockReturnValue({ id: "user-789" }),
       };
       User.create.mockResolvedValue(mockUser);
+      RefreshToken.create.mockResolvedValue();
 
       await register(mockReq, mockRes, mockNext);
 
@@ -339,7 +319,6 @@ describe("Auth Controller", () => {
       mockReq.body = {
         email: "newbie@example.com",
         password: "password123",
-        confirmPassword: "password123",
         firstName: "Newbie",
         lastName: "User",
         referralCode: "AELI-OK1234",
@@ -354,10 +333,11 @@ describe("Auth Controller", () => {
         email: "newbie@example.com",
         firstName: "Newbie",
         role: "client",
-        save: jest.fn().mockResolvedValue(),
+        toPublicJSON: jest.fn().mockReturnValue({ id: "user-999" }),
       };
       User.create.mockResolvedValue(mockUser);
       Referral.create.mockRejectedValue(new Error("unique constraint"));
+      RefreshToken.create.mockResolvedValue();
 
       await register(mockReq, mockRes, mockNext);
 
@@ -372,63 +352,8 @@ describe("Auth Controller", () => {
     });
   });
 
-  describe("verifyOTPCode", () => {
-    it("should verify OTP successfully", async () => {
-      mockReq.body = { email: "test@example.com", otp: "123456" };
-
-      const mockUser = {
-        id: "user-123",
-        email: "test@example.com",
-        firstName: "John",
-        otpCode: "hashed-otp",
-        otpExpires: new Date(Date.now() + 10 * 60 * 1000),
-        isEmailVerified: false,
-        toPublicJSON: jest.fn().mockReturnValue({ id: "user-123" }),
-      };
-
-      User.findOne.mockResolvedValue(mockUser);
-      RefreshToken.create.mockResolvedValue();
-
-      await verifyOTPCode(mockReq, mockRes, mockNext);
-
-      expect(handleSuccessfulOTP).toHaveBeenCalledWith(mockUser, mockReq);
-      expect(RefreshToken.create).toHaveBeenCalled();
-      expect(i18nResponse).toHaveBeenCalledWith(
-        mockReq,
-        mockRes,
-        200,
-        "auth.otpVerified",
-        expect.any(Object)
-      );
-    });
-
-    it("should throw error if user not found", async () => {
-      mockReq.body = { email: "nonexistent@example.com", otp: "123456" };
-
-      User.findOne.mockResolvedValue(null);
-
-      await expect(verifyOTPCode(mockReq, mockRes, mockNext)).rejects.toThrow(
-        "user.notFound"
-      );
-    });
-
-    it("should throw error if user already verified", async () => {
-      mockReq.body = { email: "verified@example.com", otp: "123456" };
-
-      const mockUser = {
-        isEmailVerified: true,
-      };
-
-      User.findOne.mockResolvedValue(mockUser);
-
-      await expect(verifyOTPCode(mockReq, mockRes, mockNext)).rejects.toThrow(
-        "auth.otpVerified"
-      );
-    });
-  });
-
   describe("login", () => {
-    it("should login verified user successfully", async () => {
+    it("should login user successfully", async () => {
       mockReq.body = { email: "test@example.com", password: "password123" };
 
       const mockUser = {
@@ -436,7 +361,6 @@ describe("Auth Controller", () => {
         email: "test@example.com",
         role: "client",
         isActive: true,
-        isEmailVerified: true,
         comparePassword: jest.fn().mockResolvedValue(true),
         toPublicJSON: jest.fn().mockReturnValue({ id: "user-123" }),
       };
@@ -455,41 +379,6 @@ describe("Auth Controller", () => {
         200,
         "auth.loginSuccess",
         expect.any(Object)
-      );
-    });
-
-    it("should handle unverified user login", async () => {
-      mockReq.body = {
-        email: "unverified@example.com",
-        password: "password123",
-      };
-
-      const mockUser = {
-        id: "user-123",
-        email: "unverified@example.com",
-        firstName: "John",
-        isActive: true,
-        isEmailVerified: false,
-        comparePassword: jest.fn().mockResolvedValue(true),
-        save: jest.fn().mockResolvedValue(),
-      };
-
-      User.findOne.mockResolvedValue(mockUser);
-
-      await login(mockReq, mockRes, mockNext);
-
-      expect(mockUser.save).toHaveBeenCalledWith({
-        fields: ["otpCode", "otpExpires", "otpAttempts"],
-      });
-      expect(i18nResponse).toHaveBeenCalledWith(
-        mockReq,
-        mockRes,
-        200,
-        "auth.emailNotVerified",
-        {
-          requiresOTP: true,
-          email: mockUser.email,
-        }
       );
     });
 

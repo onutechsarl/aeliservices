@@ -4,7 +4,10 @@ paths:
       tags:
         - Auth
       summary: Inscription d'un nouvel utilisateur
-      description: Crée un compte et envoie un code OTP par email pour vérification
+      description: >-
+        Crée un compte immédiatement utilisable et connecte l'utilisateur
+        (accessToken + refreshToken retournés). La vérification par code OTP a
+        été retirée. Seuls email, password et firstName sont requis.
       requestBody:
         required: true
         content:
@@ -13,9 +16,7 @@ paths:
               required:
                 - email
                 - password
-                - confirmPassword
                 - firstName
-                - lastName
               properties:
                 email:
                   type: string
@@ -24,22 +25,19 @@ paths:
                 password:
                   type: string
                   minLength: 8
-                  example: SecurePass123!
-                  description: Doit contenir au moins 8 caractères avec une majuscule, une minuscule et un chiffre
-                confirmPassword:
-                  type: string
-                  minLength: 8
-                  example: SecurePass123!
-                  description: Doit correspondre au mot de passe
+                  example: SecurePass123
+                  description: Au moins 8 caractères
                 firstName:
                   type: string
                   example: Marie
                 lastName:
                   type: string
                   example: Dupont
+                  description: Optionnel
                 phone:
                   type: string
                   example: "+237690000000"
+                  description: Optionnel, normalisé automatiquement
                 country:
                   type: string
                   example: Cameroun
@@ -49,9 +47,12 @@ paths:
                   type: string
                   enum: [male, female, other, prefer_not_to_say]
                   description: Genre (optionnel)
+                referralCode:
+                  type: string
+                  description: Code de parrainage (optionnel)
       responses:
         '201':
-          description: Inscription réussie, OTP envoyé
+          description: Inscription réussie, utilisateur connecté
           content:
             application/json:
               schema:
@@ -67,78 +68,14 @@ paths:
                     properties:
                       user:
                         $ref: '#/components/schemas/User'
-                      requiresOTP:
-                        type: boolean
-                        example: true
-        '400':
-          $ref: '#/components/responses/ValidationError'
-
-  /auth/verify-otp:
-    post:
-      tags:
-        - Auth
-      summary: Vérifier le code OTP
-      description: Vérifie le code OTP envoyé par email et active le compte
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - email
-                - otp
-              properties:
-                email:
-                  type: string
-                  format: email
-                otp:
-                  type: string
-                  minLength: 6
-                  maxLength: 6
-                  example: "123456"
-      responses:
-        '200':
-          description: Email vérifié avec succès
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: object
-                    properties:
-                      user:
-                        $ref: '#/components/schemas/User'
                       accessToken:
                         type: string
                       refreshToken:
                         type: string
+                      referralAccepted:
+                        type: boolean
         '400':
-          description: OTP invalide ou expiré
-
-  /auth/resend-otp:
-    post:
-      tags:
-        - Auth
-      summary: Renvoyer le code OTP
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - email
-              properties:
-                email:
-                  type: string
-                  format: email
-      responses:
-        '200':
-          description: OTP renvoyé si le compte existe
+          $ref: '#/components/responses/ValidationError'
 
   /auth/login:
     post:

@@ -2,8 +2,6 @@ const express = require('express');
 const router = express.Router();
 const {
     register,
-    verifyOTPCode,
-    resendOTP,
     login,
     refreshAccessToken,
     logout,
@@ -17,9 +15,7 @@ const { validate } = require('../middlewares/validation');
 const { checkAccountLock } = require('../middlewares/security');
 const {
     loginLimiter,
-    passwordResetLimiter,
-    otpLimiter,
-    otpResendLimiter
+    passwordResetLimiter
 } = require('../middlewares/rateLimiter');
 const {
     registerValidation,
@@ -29,26 +25,14 @@ const {
 } = require('../validators/authValidator');
 const { body } = require('express-validator');
 
-// OTP validation
-const otpValidation = [
-    body('email').isEmail().withMessage('Email invalide').normalizeEmail(),
-    body('otp').isLength({ min: 6, max: 6 }).withMessage('Code OTP invalide')
-];
-
-const resendOtpValidation = [
-    body('email').isEmail().withMessage('Email invalide').normalizeEmail()
-];
-
 const refreshTokenValidation = [
     body('refreshToken').notEmpty().withMessage('Refresh token requis')
 ];
 
 // ============ PUBLIC ROUTES ============
 
-// Registration & OTP
+// Registration (email verification by one-time code has been removed)
 router.post('/register', registerValidation, validate, register);
-router.post('/verify-otp', otpLimiter, otpValidation, validate, verifyOTPCode);
-router.post('/resend-otp', otpResendLimiter, resendOtpValidation, validate, resendOTP);
 
 // Login (with account lock check)
 router.post('/login', loginLimiter, checkAccountLock, loginValidation, validate, login);

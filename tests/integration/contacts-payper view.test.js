@@ -73,7 +73,7 @@ describe('Contact Pay-Per-View E2E Tests', () => {
     });
 
     describe('Contact Creation and Locking', () => {
-        it('should create locked contact for provider WITHOUT subscription', async () => {
+        it('should create an UNLOCKED contact even without subscription (pay-per-view removed)', async () => {
             const res = await request(app)
                 .post('/api/contacts')
                 .set('Authorization', `Bearer ${clientToken}`)
@@ -87,12 +87,12 @@ describe('Contact Pay-Per-View E2E Tests', () => {
 
             expect(res.statusCode).toBe(201);
 
-            // Check in database
+            // Check in database — messages are now unlocked by default.
             const contact = await Contact.findOne({
                 where: { providerId: noSubscriptionProvider.id }
             });
-            expect(contact.isUnlocked).toBe(false);
-            expect(contact.unlockedAt).toBeNull();
+            expect(contact.isUnlocked).toBe(true);
+            expect(contact.unlockedAt).not.toBeNull();
         });
 
         it('should auto-unlock contact for provider WITH active subscription', async () => {
@@ -118,13 +118,13 @@ describe('Contact Pay-Per-View E2E Tests', () => {
         });
     });
 
-    describe('Masked Data Retrieval', () => {
-        it('should return masked data for locked contacts', async () => {
-            // Create locked contact
+    describe('Full Data Retrieval (pay-per-view removed)', () => {
+        it('should return full, unlocked data even for a legacy locked row', async () => {
+            // Simulate a message stored while the lock was still active.
             const contact = await Contact.create({
                 userId: clientUser.id,
                 providerId: noSubscriptionProvider.id,
-                message: 'This is a test message that should be partially hidden',
+                message: 'This is a test message that should be fully visible',
                 senderName: 'John Doe',
                 senderEmail: 'john.doe@example.com',
                 senderPhone: '+237699888777',
@@ -137,13 +137,17 @@ describe('Contact Pay-Per-View E2E Tests', () => {
 
             expect(res.statusCode).toBe(200);
 
-            const lockedContact = res.body.data.contacts.find(c => c.id === contact.id);
-            expect(lockedContact.needsUnlock).toBe(true);
-            expect(lockedContact.isUnlocked).toBe(false);
-            expect(lockedContact.unlockPrice).toBe(500);
-            expect(lockedContact.messagePreview).toContain('...');
-            expect(lockedContact.senderEmail).toMatch(/\*\*\*/);
-            expect(lockedContact.senderPhone).toMatch(/\*\*\* \*\*\*/);
+            const fetched = res.body.data.contacts.find(c => c.id === contact.id);
+            expect(fetched).toBeDefined();
+            // No masking anymore: the provider sees the real message and details.
+            expect(fetched.needsUnlock).toBeUndefined();
+            expect(fetched.isUnlocked).toBe(true);
+            expect(fetched.message).toBe('This is a test message that should be fully visible');
+            expect(fetched.senderEmail).toBe('john.doe@example.com');
+
+            // The legacy row is normalized to unlocked in the database.
+            const reloaded = await Contact.findByPk(contact.id);
+            expect(reloaded.isUnlocked).toBe(true);
         });
     });
 
@@ -162,19 +166,15 @@ describe('Contact Pay-Per-View E2E Tests', () => {
             });
         });
 
-        it('should initiate unlock payment', async () => {
+        it('should no longer require payment to unlock (everything is viewable)', async () => {
+            // Pay-per-view removed: the message is already viewable, so trying
+            // to start an unlock payment is rejected as "already unlocked".
             const res = await request(app)
                 .post(`/api/contacts/${lockedContact.id}/unlock`)
                 .set('Authorization', `Bearer ${providerToken}`);
 
-            // Will fail without CinetPay API key in test env
-            // But should at least validate the flow
-            expect([200, 500]).toContain(res.statusCode);
-
-            if (res.statusCode === 200) {
-                expect(res.body.data.amount).toBe(500);
-                expect(res.body.data.paymentUrl).toBeDefined();
-            }
+            expect(res.statusCode).toBe(400);
+            expect(res.body.message).toMatch(/déjà débloqué/i);
         });
 
         it('should reject unlock if already unlocked', async () => {

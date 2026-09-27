@@ -236,8 +236,10 @@ paths:
     post:
       tags:
         - Contacts
-      summary: Initier le débloquage d'un message (Pay-Per-View)
-      description: Crée un paiement de 500 FCFA pour débloquer les coordonnées du client
+      summary: "[Déprécié] Initier le débloquage d'un message"
+      description: >-
+        Déprécié : la restriction pay-per-view a été retirée, tous les messages
+        sont déjà visibles. Cet endpoint répond désormais 400 « déjà débloqué ».
       security:
         - bearerAuth: []
       parameters:

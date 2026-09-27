@@ -15,7 +15,7 @@
     "deleted": "Deleted successfully"
   },
   "auth": {
-    "registered": "Registration successful. Please check your email.",
+    "registered": "Registration successful.",
     "loginSuccess": "Login successful",
     "logoutSuccess": "Logout successful",
     "logoutAllSuccess": "Logged out from all devices",

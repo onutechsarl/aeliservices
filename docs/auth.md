@@ -19,9 +19,11 @@ Crée un nouveau compte utilisateur. Par défaut, tous les utilisateurs sont cr�
 **Ce qu'il fait :**
 1. Vérifie que l'email n'existe pas déjà
 2. Hash le mot de passe avec bcrypt (10 rounds)
-3. Génère un code OTP à 6 chiffres
-4. Envoie l'OTP par email
-5. Crée l'utilisateur avec `isEmailVerified = false`
+3. Crée l'utilisateur, **immédiatement utilisable** (`isEmailVerified = true`)
+4. Connecte l'utilisateur et retourne les tokens (access + refresh)
+5. Envoie un email de bienvenue (best-effort)
+
+> **La vérification par code OTP a été retirée.** Le compte est actif dès l'inscription ; il n'y a plus d'étape `verify-otp` / `resend-otp`.
 
 **Rate Limiting :** aucune limite spécifique sur cette route (le rate limit global de l'API s'applique).
 
@@ -29,11 +31,10 @@ Crée un nouveau compte utilisateur. Par défaut, tous les utilisateurs sont cr�
 ```json
 {
   "email": "marie@example.com",
-  "password": "SecurePass123!",
-  "confirmPassword": "SecurePass123!",
+  "password": "SecurePass123",
   "firstName": "Marie",
-  "lastName": "Dupont",
-  "phone": "+237699123456",  // Optionnel
+  "lastName": "Dupont",       // Optionnel
+  "phone": "+237699123456",   // Optionnel, normalisé automatiquement
   "country": "Cameroun",      // Optionnel, défaut: Cameroun
   "gender": "female",         // Optionnel: male, female, other, prefer_not_to_say
   "referralCode": "AELI-X7K2P9" // Optionnel — code de parrainage d'un autre user
@@ -41,19 +42,21 @@ Crée un nouveau compte utilisateur. Par défaut, tous les utilisateurs sont cr�
 ```
 
 **Validation :**
-- `email` : format email valide, unique
-- `password` : min 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre
-- `confirmPassword` : requis, doit correspondre au `password`
-- `firstName`, `lastName` : 2-100 caractères
+- `email` : format email valide, unique — **requis**
+- `password` : min 8 caractères — **requis**
+- `firstName` : 1-100 caractères — **requis**
+- `lastName` : optionnel, ≤ 100 caractères
+- `phone` : optionnel, normalisé au format international
 - `country` : optionnel, 2-100 caractères
 - `gender` : optionnel, valeurs acceptées: `male`, `female`, `other`, `prefer_not_to_say`
 - `referralCode` : optionnel, string ≤ 40 caractères. Normalisé en majuscules. Un code inconnu n'empêche pas l'inscription, le champ `referralAccepted` indique simplement `false` dans la réponse.
+- La confirmation du mot de passe (`confirmPassword`) est gérée **côté frontend uniquement** ; le serveur ne l'exige plus.
 
 **Réponse 201 :**
 ```json
 {
   "success": true,
-  "message": "Inscription réussie. Vérifiez votre email.",
+  "message": "Inscription réussie.",
   "user": {
     "id": "uuid",
     "email": "marie@example.com",
@@ -61,89 +64,18 @@ Crée un nouveau compte utilisateur. Par défaut, tous les utilisateurs sont cr�
     "lastName": "Dupont",
     "role": "client",
     "profilePhoto": null,
-    "isEmailVerified": false
+    "isEmailVerified": true
   },
-  "requiresOTP": true,
+  "accessToken": "eyJhbGc...",
+  "refreshToken": "eyJhbGc...",
   "referralAccepted": true
 }
 ```
 
 **À propos du parrainage :**
 - Si `referralCode` correspond à un utilisateur actif, un enregistrement `Referral` est créé en statut `pending`.
-- Le bonus est appliqué automatiquement au parrain quand le filleul vérifie son email via l'OTP (réglage par défaut, modifiable depuis le dashboard admin).
+- Le bonus est appliqué au parrain **dès l'inscription du filleul** (l'étape de vérification email ayant été retirée).
 - Le filleul ne reçoit rien (v1 du programme).
-
-**⚠️ Important :**  
-L'utilisateur ne peut PAS se connecter tant qu'il n'a pas vérifié son email avec l'OTP.
-
----
-
-## ✅ 2. VÉRIFICATION EMAIL (OTP)
-
-### `POST /verify-otp` - Vérifier le code OTP
-
-**Description :**  
-Valide le code OTP envoyé par email lors de l'inscription.
-
-**Ce qu'il fait :**
-1. Vérifie que l'OTP correspond et n'est pas expiré (10 min)
-2. Vérifie le nombre de tentatives (max 3)
-3. Si valide : `isEmailVerified = true`
-4. Génère les tokens (access + refresh)
-5. Envoie un email de bienvenue
-
-**Rate Limiting :** 5 requêtes / 5 min par IP
-
-**Body :**
-```json
-{
-  "email": "marie@example.com",
-  "otp": "123456"
-}
-```
-
-**Réponse 200 :**
-```json
-{
-  "success": true,
-  "message": "Email vérifié avec succès",
-  "accessToken": "eyJhbGc...",
-  "refreshToken": "eyJhbGc...",
-  "user": {
-    "id": "uuid",
-    "email": "marie@example.com",
-    "role": "client",
-    "profilePhoto": null,
-    "isEmailVerified": true
-  }
-}
-```
-
-**Erreurs possibles :**
-- `400` : OTP invalide ou expiré
-- `400` : Trop de tentatives (compte temporairement bloqué)
-
----
-
-### `POST /resend-otp` - Renvoyer le code OTP
-
-**Description :**  
-Génère et envoie un nouveau code OTP si l'utilisateur n'a pas reçu le premier.
-
-**Ce qu'il fait :**
-1. Vérifie que l'utilisateur existe et n'est pas déjà vérifié
-2. Génère un nouveau code OTP
-3. Réinitialise le compteur de tentatives
-4. Envoie l'email
-
-**Rate Limiting :** 3 requêtes / 15 min par email
-
-**Body :**
-```json
-{
-  "email": "marie@example.com"
-}
-```
 
 ---
 
@@ -202,8 +134,7 @@ Authentifie un utilisateur et retourne les tokens JWT.
 | Code | Message | Cause |
 |------|---------|-------|
 | 401 | Identifiants incorrects | Email ou mot de passe invalide |
-| 403 | Email non vérifié | Doit faire verify-otp d'abord |
-| 403 | Compte désactivé | Admin a désactivé le compte |
+| 401 | Compte désactivé | Admin a désactivé le compte |
 | 429 | Compte verrouillé | Trop de tentatives échouées |
 
 ---
@@ -419,9 +350,9 @@ Authorization: Bearer <accessToken>
 
 | Code | Situation |
 |------|-----------|
-| 400 | Données invalides, OTP expiré |
-| 401 | Token invalide/expiré, mauvais credentials |
-| 403 | Email non vérifié, compte désactivé |
+| 400 | Données invalides |
+| 401 | Token invalide/expiré, mauvais credentials, compte désactivé |
+| 403 | Action non autorisée |
 | 429 | Rate limit atteint, compte verrouillé |
 | 500 | Erreur serveur |
 
@@ -450,9 +381,8 @@ const isAuthenticated = () => {
 
 ### Flow d'inscription
 ```
-1. POST /register → Afficher "Vérifiez votre email"
-2. Utilisateur entre OTP
-3. POST /verify-otp → Tokens reçus → Rediriger vers dashboard
+1. POST /register → Tokens reçus directement (compte actif immédiatement)
+2. Stocker tokens → Rediriger vers dashboard
 ```
 
 ### Flow de connexion
@@ -460,7 +390,6 @@ const isAuthenticated = () => {
 1. POST /login → Tokens reçus
 2. Stocker tokens
 3. Rediriger vers dashboard
-4. Si 403 "Email non vérifié" → Afficher écran OTP
 ```
 
 ---
@@ -478,52 +407,11 @@ const isAuthenticated = () => {
     ▼
 POST /api/auth/register
     │
-    ├── Validation (email, password, nom...)
+    ├── Validation (email, password, firstName)
     │
     ▼
 ┌─────────────────────┐
 │ User créé           │
-│ isEmailVerified:false│
-│ OTP généré (6 digits)│
-└─────────┬───────────┘
-          │
-          ▼
-┌─────────────────────┐
-│ 📧 Email envoyé     │
-│ "Votre code OTP:    │
-│  123456"            │
-└─────────┬───────────┘
-          │
-          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    PAGE VÉRIFICATION OTP                         │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │          Vérifiez votre email                               ││
-│  │                                                              ││
-│  │  Un code a été envoyé à marie@example.com                   ││
-│  │                                                              ││
-│  │  ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐                       ││
-│  │  │ 1 │ │ 2 │ │ 3 │ │ 4 │ │ 5 │ │ 6 │                       ││
-│  │  └───┘ └───┘ └───┘ └───┘ └───┘ └───┘                       ││
-│  │                                                              ││
-│  │  [Vérifier]         Renvoyer le code                        ││
-│  └─────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
-          │
-          ▼
-POST /api/auth/verify-otp { email, otp: "123456" }
-          │
-    ┌─────┴─────┐
-    │           │
-    ▼           ▼
-[OTP OK]    [OTP KO]
-    │           │
-    │           └──► Erreur: "Code invalide" (max 3 essais)
-    │                    │
-    │                    └──► POST /resend-otp (nouveau code)
-    │
-    ▼
-┌─────────────────────┐
 │ isEmailVerified:true│
 │ Access Token généré │
 │ Refresh Token généré│
@@ -532,7 +420,7 @@ POST /api/auth/verify-otp { email, otp: "123456" }
           │
           ▼
     ✅ Redirection vers Dashboard
-       Utilisateur connecté !
+       Utilisateur connecté immédiatement !
 ```
 
 ---

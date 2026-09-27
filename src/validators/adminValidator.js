@@ -39,11 +39,9 @@ const featureProviderValidation = [
         .withMessage('ID prestataire invalide'),
     body('isFeatured')
         .isBoolean()
-        .withMessage('isFeatured doit être un booléen'),
-    body('duration')
-        .optional()
-        .isInt({ min: 1, max: 365 })
-        .withMessage('La durée (en jours) doit être un entier entre 1 et 365')
+        .withMessage('isFeatured doit être un booléen')
+    // `duration` is no longer accepted: featuring is permanent until an admin
+    // removes it. Any duration sent by an old client is simply ignored.
 ];
 
 /**
