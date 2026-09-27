@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from "react-toastify";
-import { Phone, ArrowLeft, Mail, ExternalLink, CheckCheck, Lock } from 'lucide-react';
+import { Phone, ArrowLeft, Mail, CheckCheck } from 'lucide-react';
 import { Avatar } from '../../../ui/Avatar';
-import { Alert } from '../../../ui/Alert';
 import { StatusMenu } from '../../global/StatusMenu';
-import { useUpdateStatusMessage, useUnlockMessage } from '../../../hooks/useContact';
+import { useUpdateStatusMessage } from '../../../hooks/useContact';
 
 /**
  * UI component responsible for rendering chat window.
  */
 export function ChatWindow({ chat, onBack }) {
     const [openMenuId, setOpenMenuId] = useState(null);
-    const [unlockingId, setUnlockingId] = useState(null);
     const triggerRefs = useRef({});
 
     const {
@@ -23,19 +21,6 @@ export function ChatWindow({ chat, onBack }) {
         reset: resetUpdateStatus
     } = useUpdateStatusMessage();
 
-    const {
-        mutate: mutateUnlockMessage,
-        data: dataUnlock,
-        isSuccess: isSuccessUnlock,
-        isError: isErrorUnlock,
-        error: errorUnlock,
-        reset: resetUnlocking
-    } = useUnlockMessage();
-
-    if (!chat) return <div className="flex-1 flex items-center justify-center text-gray-400">Sélectionnez une discussion</div>;
-    const latestInfo = chat.messages[0].fullData;
-    const isContactUnlocked = latestInfo.isUnlocked;
-
     /**
      * Handles handle update status behavior.
      */
@@ -45,28 +30,16 @@ export function ChatWindow({ chat, onBack }) {
             formData: { status: newStatus }
         });
     };
-    /**
-     * Handles handle unlock behavior.
-     */
-    const handleUnlock = (messageId) => {
-        setUnlockingId(messageId);
-        mutateUnlockMessage({ id: messageId });
-    };
-
     useEffect(() => {
-        if (isSuccessUpdateStatus && dataUpdateStatus?.success || isSuccessUnlock && dataUnlock?.success) {
-            toast.success(dataUpdateStatus?.message || dataUnlock?.message);
-
-            if (dataUnlock?.data?.paymentUrl) {
-                window.location.href = dataUnlock.data.paymentUrl;
-            }
+        if (isSuccessUpdateStatus && dataUpdateStatus?.success) {
+            toast.success(dataUpdateStatus.message);
         }
 
-        if (isErrorUpdateStatus || isErrorUnlock) {
-            const mainMessage = errorUpdateStatus?.message || errorUnlock?.message;
+        if (isErrorUpdateStatus) {
+            const mainMessage = errorUpdateStatus?.message;
             toast.error(mainMessage);
 
-            const backendErrors = errorUpdateStatus?.response?.errors || errorUnlock?.response?.errors;
+            const backendErrors = errorUpdateStatus?.response?.errors;
             if (Array.isArray(backendErrors)) {
                 backendErrors.forEach((err) => {
                     toast.info(err.message);
@@ -75,9 +48,10 @@ export function ChatWindow({ chat, onBack }) {
         }
 
         resetUpdateStatus();
-        resetUnlocking();
-        setUnlockingId(null);
-    }, [isSuccessUpdateStatus, isErrorUpdateStatus, dataUpdateStatus, errorUpdateStatus, resetUpdateStatus, isSuccessUnlock, isErrorUnlock, dataUnlock, errorUnlock, resetUnlocking]);
+    }, [isSuccessUpdateStatus, isErrorUpdateStatus, dataUpdateStatus, errorUpdateStatus, resetUpdateStatus]);
+
+    if (!chat) return <div className="flex-1 flex items-center justify-center text-gray-400">Sélectionnez une discussion</div>;
+    const latestInfo = chat.messages[0].fullData;
 
     return (
         <div className="flex flex-col h-full w-full">
@@ -90,25 +64,20 @@ export function ChatWindow({ chat, onBack }) {
                         <p className="text-[10px] text-green-500 font-medium italic">Conversation groupée</p>
                     </div>
                 </div>
-                {isContactUnlocked && (
-                    <div className="flex gap-1 animate-in fade-in zoom-in duration-300">
+                <div className="flex gap-1 animate-in fade-in zoom-in duration-300">
+                    {latestInfo.senderPhone && (
                         <a href={`tel:${latestInfo.senderPhone}`} className="p-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
                             <Phone size={18} />
                         </a>
+                    )}
+                    {latestInfo.senderEmail && (
                         <a href={`mailto:${latestInfo.senderEmail}`} className="p-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
                             <Mail size={18} />
                         </a>
-                    </div>
-                )}
+                    )}
+                </div>
 
             </header>
-            {!isContactUnlocked && (
-                <Alert
-                    variant="warning"
-                    title="Messages verrouillés"
-                    message="Vous avez des messages en attente. Souscrivez à un plan Premium pour débloquer l'accès aux coordonnées de vos clients et lire l'intégralité de leurs messages."
-                />
-            )}
             <div className="flex-1 min-h-0 overflow-y-auto py-4 md:p-4 md:p-6 space-y-8 no-scrollbar">
                 {[...chat.messages].reverse().map((msg) => (
                     <div key={msg.id} className="flex items-start max-w-full">
@@ -120,20 +89,7 @@ export function ChatWindow({ chat, onBack }) {
                             </div>
 
                             <div className="flex flex-col text-sm text-gray-700 leading-relaxed whitespace-pre-wrap bg-white p-4 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm">
-                                {msg.isUnlocked ? (
-                                    <p className="text-gray-700 whitespace-pre-wrap">{msg.text}</p>
-                                ) : (
-                                    <div className="relative py-2">
-                                        <p className="text-gray-400 select-none blur-[4px]">
-                                            {msg?.text?.substring(0, 50)}...
-                                        </p>
-                                        <div className="absolute inset-0 flex items-center justify-center bg-white/40 rounded-lg">
-                                            <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full text-amber-700 text-[10px] font-bold">
-                                                <Lock size={12} /> Contenu verrouillé
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                                <p className="text-gray-700 whitespace-pre-wrap">{msg.text}</p>
                                 <span className="flex justify-end pt-2">
                                     {msg.fullData.status && (
                                         <span className={`text-[10px] ${msg.fullData.status == "pending" ? "text-gray-500" : "text-green-500"}`}>
@@ -143,28 +99,13 @@ export function ChatWindow({ chat, onBack }) {
                                 </span>
                             </div>
                             <div className="mt-4 flex flex-wrap gap-2 items-center">
-                                <span className={`flex px-3 py-1 rounded-full text-[10px] font-bold justify-center items-center ${msg.isUnlocked ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                                    {msg.isUnlocked ? 'Débloqué' : 'Payant'}
-                                </span>
-                                {msg.isUnlocked &&
-                                    <button
-                                        ref={el => triggerRefs.current[msg.id] = el}
-                                        onClick={() => setOpenMenuId(openMenuId === msg.id ? null : msg.id)}
-                                        className="px-4 py-1.5 rounded-full border border-purple-400 text-purple-600 text-[10px] font-bold hover:bg-purple-50 transition-colors"
-                                    >
-                                        Changer status
-                                    </button>
-                                }
-                                {!msg.isUnlocked && (
-                                    <button
-                                        onClick={() => handleUnlock(msg.id)}
-                                        disabled={unlockingId === msg.id}
-                                        className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-600 text-white text-[10px] font-bold hover:bg-purple-700 transition-colors shadow-sm disabled:opacity-50"
-                                    >
-                                        {unlockingId === msg.id ? "Chargement..." : "Voir (500 Fcfa)"}
-                                        <ExternalLink size={12} />
-                                    </button>
-                                )}
+                                <button
+                                    ref={el => triggerRefs.current[msg.id] = el}
+                                    onClick={() => setOpenMenuId(openMenuId === msg.id ? null : msg.id)}
+                                    className="px-4 py-1.5 rounded-full border border-purple-400 text-purple-600 text-[10px] font-bold hover:bg-purple-50 transition-colors"
+                                >
+                                    Changer status
+                                </button>
                                 <StatusMenu
                                     isOpen={openMenuId === msg.id}
                                     onClose={() => setOpenMenuId(null)}

@@ -59,16 +59,3 @@ export const useUpdateStatusMessage = () => {
     });
 };
 
-/**
- * Custom hook that manages unlock message.
- */
-export const useUnlockMessage = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationKey: ["useUnlockMessage"],
-        mutationFn: ({ id }) => request(`/api/contacts/${id}/unlock`, "POST"),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["useGetReceivedContact"] });
-        },
-    });
-};

@@ -34,7 +34,6 @@ export function ProviderMessaging({ closeMessaging }) {
                 id: contact.id,
                 text: contact.message,
                 timestamp: new Date(contact.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-                isUnlocked: contact.isUnlocked, // On remonte l'info ici
                 fullData: contact
             });
         });
